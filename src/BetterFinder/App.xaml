@@ -4,5 +4,10 @@
              xmlns:local="clr-namespace:BetterFinder">
     <Application.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <DrawingImage x:Key="AppIcon">
+            <DrawingImage.Drawing>
+                <ImageDrawing ImageSource="/Resources/BetterFinder-Icon.png" Rect="0,0,64,64" />
+            </DrawingImage.Drawing>
+        </DrawingImage>
     </Application.Resources>
 </Application> 

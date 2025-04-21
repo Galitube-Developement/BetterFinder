@@ -5,13 +5,14 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Management;
 
 namespace BetterFinder
 {
     public class IndexingStatusEventArgs : EventArgs
     {
         public string Message { get; }
-        public string CurrentFolder { get; } // Aktueller Ordner, der indiziert wird
+        public string CurrentFolder { get; }
 
         public IndexingStatusEventArgs(string message, string currentFolder = null)
         {
@@ -29,35 +30,28 @@ namespace BetterFinder
         private readonly object _lockObject = new object();
         private readonly HashSet<string> _excludedFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private readonly ConcurrentDictionary<string, bool> _indexedPaths = new ConcurrentDictionary<string, bool>();
+        private CancellationTokenSource _cts;
 
-        // Erhöhte Anzahl der parallelen Tasks für die Indizierung
-        private const int MaxParallelTasks = 16;
-        
-        // Maximal zu durchsuchende Tiefe (nur für bestimmte Pfade)
-        private const int MaxDepthForNonSystemDrives = 6;
+        // Konfiguration
+        private const int MAX_SEARCH_DEPTH = 30;
+        private const bool INCLUDE_HIDDEN_SYSTEM_FOLDERS = true;
 
+        // Events
         public event EventHandler<IndexingStatusEventArgs> IndexingStatusChanged;
         public event EventHandler IndexingCompleted;
+        public event EventHandler<IndexingProgressEventArgs> IndexingProgress;
+        public event EventHandler IndexingComplete;
 
+        // Properties
         public int FileCount => _indexedFiles.Count;
-
         public bool IsIndexing => _isIndexing;
-        
-        // Option zum vollständigen Indizieren
-        public bool IndexEverything { get; set; } = false;
+        public bool IndexSystemFiles { get; set; } = false;
 
         public FileIndexer()
         {
-            // Mehr Ordner ausschließen für bessere Performance
+            // Nur die wichtigsten Ordner ausschließen
             _excludedFolders.Add("$Recycle.Bin");
             _excludedFolders.Add("System Volume Information");
-            _excludedFolders.Add("tmp");
-            _excludedFolders.Add("temp");
-            _excludedFolders.Add("cache");
-            _excludedFolders.Add("node_modules");
-            _excludedFolders.Add(".git");
-            _excludedFolders.Add("bower_components");
-            _excludedFolders.Add("vendor");
         }
 
         public void StartIndexing()
@@ -70,222 +64,274 @@ namespace BetterFinder
             _filesByExtension.Clear();
             _processedFolderCount = 0;
             _indexedPaths.Clear();
+            _cts = new CancellationTokenSource();
 
-            Task.Run(() => IndexDrives());
+            // Start in einem separaten Thread
+            Task.Run(() => IndexAllDrives());
         }
 
-        private void IndexDrives()
+        public void StopIndexing()
+        {
+            if (!_isIndexing)
+                return;
+
+            _cts?.Cancel();
+            _isIndexing = false;
+            OnIndexingStatusChanged("Indexierung wurde vom Benutzer abgebrochen.");
+        }
+
+        // KOMPLETT NEUE IMPLEMENTIERUNG DER LAUFWERKSERKENNUNG UND INDEXIERUNG
+        private void IndexAllDrives()
         {
             try
             {
-                // Oft genutzte Pfade priorisieren für schnellere Ergebnisse
-                List<string> priorityPaths = new List<string>
-                {
-                    $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}\\Documents",
-                    $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}\\Downloads",
-                    $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}\\Desktop",
-                    $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}\\Pictures",
-                    $"{Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)}"
-                };
-                
-                // Zuerst wichtige Pfade indexieren
-                OnIndexingStatusChanged("Indexiere wichtige Pfade...");
-                Parallel.ForEach(priorityPaths, new ParallelOptions { MaxDegreeOfParallelism = MaxParallelTasks }, path =>
-                {
-                    try 
-                    {
-                        if (Directory.Exists(path))
-                        {
-                            OnIndexingStatusChanged($"Indexiere {path}...");
-                            IndexDirectory(new DirectoryInfo(path), 0, true);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        OnIndexingStatusChanged($"Fehler bei Indexierung von {path}: {ex.Message}");
-                    }
-                });
+                OnIndexingStatusChanged("Starte komplett neue Laufwerks-Indizierung...");
+                OnIndexingProgress("Initialisierung", 0);  // Initial Progress-Event
 
-                List<string> drives = new List<string>();
+                // 1. BELIEBTE PFADE ZUERST INDEXIEREN
+                IndexPopularPaths();
                 
-                // Alle möglichen Laufwerksbuchstaben C-Z durchgehen (C zuerst)
-                drives.Add("C:\\");
-                for (char driveLetter = 'D'; driveLetter <= 'Z'; driveLetter++)
+                // 2. ALLE VERFÜGBAREN LAUFWERKE MIT MEHREREN METHODEN ERMITTELN
+                var availableDrives = GetAllDrivesWithMultipleMethods();
+                OnIndexingStatusChanged($"Gefundene Laufwerke: {string.Join(", ", availableDrives)}");
+                
+                // 3. JEDEN LAUFWERKSBUCHSTABEN EINZELN INDEXIEREN
+                foreach (var drive in availableDrives)
                 {
-                    string drivePath = $"{driveLetter}:\\";
+                    if (_cts.Token.IsCancellationRequested)
+                        break;
+                        
                     try
                     {
-                        // Prüfen ob Laufwerk existiert
-                        if (Directory.Exists(drivePath))
-                        {
-                            drives.Add(drivePath);
-                            OnIndexingStatusChanged($"Laufwerk {drivePath} gefunden und wird indexiert.");
-                        }
+                        OnIndexingStatusChanged($"Indexiere Laufwerk {drive}...");
+                        var rootDir = new DirectoryInfo(drive);
+                        IndexDirectoryRecursive(rootDir, 0);
+                        OnIndexingStatusChanged($"Laufwerk {drive} erfolgreich indexiert.");
+                        
+                        // Neue Event für Fortschrittsanzeige auslösen
+                        OnIndexingProgress(drive, _indexedFiles.Count);
                     }
                     catch (Exception ex)
                     {
-                        // Ignoriere Fehler beim Prüfen und fahre mit dem nächsten Laufwerk fort
-                        OnIndexingStatusChanged($"Laufwerk {drivePath} konnte nicht geprüft werden: {ex.Message}");
+                        OnIndexingStatusChanged($"Fehler beim Indexieren von Laufwerk {drive}: {ex.Message}");
                     }
                 }
                 
-                OnIndexingStatusChanged($"Gefundene Laufwerke: {string.Join(", ", drives)}");
-                
-                // C: zuerst indexieren, mit voller Tiefe
-                if (drives.Contains("C:\\"))
-                {
-                    OnIndexingStatusChanged("Indexiere C:\\...");
-                    IndexDirectory(new DirectoryInfo("C:\\"), 0, true);
-                    drives.Remove("C:\\");
-                }
-                
-                // Andere Laufwerke parallel indexieren mit begrenzter Tiefe
-                if (drives.Count > 0)
-                {
-                    OnIndexingStatusChanged($"Indexiere {drives.Count} weitere Laufwerke...");
-                    Parallel.ForEach(drives, new ParallelOptions { MaxDegreeOfParallelism = MaxParallelTasks }, drive =>
-                    {
-                        try 
-                        {
-                            OnIndexingStatusChanged($"Indexiere Laufwerk {drive}...");
-                            IndexDirectory(new DirectoryInfo(drive), 0, false); // Begrenzte Tiefe für andere Laufwerke
-                        }
-                        catch (Exception ex)
-                        {
-                            OnIndexingStatusChanged($"Fehler bei Indexierung von {drive}: {ex.Message}");
-                        }
-                    });
-                }
-
+                OnIndexingStatusChanged($"Alle Laufwerke wurden indexiert. {_indexedFiles.Count} Dateien gefunden.");
+                OnIndexingProgress("Abgeschlossen", _indexedFiles.Count);  // Finales Progress-Event
                 _isIndexing = false;
                 OnIndexingCompleted();
             }
             catch (Exception ex)
             {
-                OnIndexingStatusChanged($"Fehler bei der Indexierung: {ex.Message}");
+                OnIndexingStatusChanged($"Kritischer Fehler bei der Indexierung: {ex.Message}");
                 _isIndexing = false;
             }
         }
-
-        private string GetDriveTypeDescription(DriveType driveType)
+        
+        // Ermittelt alle Laufwerke mit mehreren Methoden für maximale Abdeckung
+        private List<string> GetAllDrivesWithMultipleMethods()
         {
-            switch (driveType)
-            {
-                case DriveType.Fixed:
-                    return "Festplatten";
-                case DriveType.Removable:
-                    return "Wechseldatenträger";
-                case DriveType.Network:
-                    return "Netzwerk";
-                case DriveType.CDRom:
-                    return "CD/DVD";
-                case DriveType.Ram:
-                    return "RAM-Disk";
-                default:
-                    return driveType.ToString();
-            }
-        }
-
-        private void IndexDirectory(DirectoryInfo directory, int currentDepth = 0, bool isFullIndexing = true)
-        {
+            var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            
+            // METHODE 1: Environment.GetLogicalDrives() - .NET Standard API
             try
             {
-                // Bereits indexierte Pfade überspringen
-                if (_indexedPaths.ContainsKey(directory.FullName))
-                    return;
+                string[] envDrives = Environment.GetLogicalDrives();
+                OnIndexingStatusChanged($"Methode 1 (Environment.GetLogicalDrives): {string.Join(", ", envDrives)}");
+                foreach (var drive in envDrives)
+                {
+                    result.Add(drive);
+                }
+            }
+            catch (Exception ex)
+            {
+                OnIndexingStatusChanged($"Fehler bei Methode 1: {ex.Message}");
+            }
+            
+            // METHODE 2: DriveInfo.GetDrives() - Systemlaufwerke
+            try
+            {
+                var driveInfos = DriveInfo.GetDrives();
+                OnIndexingStatusChanged($"Methode 2 (DriveInfo.GetDrives): {driveInfos.Length} Laufwerke gefunden");
+                foreach (var di in driveInfos)
+                {
+                    result.Add(di.Name);
+                    OnIndexingStatusChanged($"Laufwerk gefunden: {di.Name} (Typ: {di.DriveType})");
+                }
+            }
+            catch (Exception ex)
+            {
+                OnIndexingStatusChanged($"Fehler bei Methode 2: {ex.Message}");
+            }
+            
+            // METHODE 3: WMI Query - Windows Management Instrumentation
+            try
+            {
+                using (var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_LogicalDisk"))
+                {
+                    var drives = searcher.Get();
+                    OnIndexingStatusChanged($"Methode 3 (WMI): {drives.Count} Laufwerke gefunden");
                     
-                _indexedPaths.TryAdd(directory.FullName, true);
-                
-                // Tiefenbegrenzung für nicht-priorisierte Laufwerke
-                if (!isFullIndexing && currentDepth > MaxDepthForNonSystemDrives)
-                    return;
-                
-                // Überprüfe, ob der Ordner ausgeschlossen werden soll
-                if (ShouldExcludeDirectory(directory))
-                    return;
-
-                // Status aktualisieren mit aktuellem Ordner
-                if (_processedFolderCount % 20 == 0) // Nur gelegentlich aktualisieren, um Performance zu erhalten
-                {
-                    OnIndexingStatusChanged($"{_indexedFiles.Count} Dateien indiziert, {_processedFolderCount} Ordner verarbeitet...", 
-                        directory.FullName);
-                }
-
-                // Dateien im aktuellen Verzeichnis
-                FileInfo[] files = null;
-                try
-                {
-                    files = directory.GetFiles();
-                    ProcessFiles(files);
-
-                    // Status-Update alle 500 verarbeiteten Ordner
-                    Interlocked.Increment(ref _processedFolderCount);
-                    if (_processedFolderCount % 500 == 0)
+                    foreach (ManagementObject drive in drives)
                     {
-                        OnIndexingStatusChanged($"{_indexedFiles.Count} Dateien indiziert, {_processedFolderCount} Ordner verarbeitet...");
-                    }
-                }
-                catch (UnauthorizedAccessException) { }
-                catch (IOException) { }
-
-                // Unterverzeichnisse
-                DirectoryInfo[] subDirs = null;
-                try
-                {
-                    subDirs = directory.GetDirectories();
-                }
-                catch (UnauthorizedAccessException) { }
-                catch (IOException) { }
-
-                if (subDirs != null && subDirs.Length > 0)
-                {
-                    // Verarbeite Unterverzeichnisse parallel bei großen Ordnern
-                    if (subDirs.Length > 10)
-                    {
-                        Parallel.ForEach(subDirs, new ParallelOptions { MaxDegreeOfParallelism = MaxParallelTasks }, subDir =>
+                        string driveLetter = drive["DeviceID"].ToString();
+                        string description = drive["Description"].ToString();
+                        OnIndexingStatusChanged($"WMI Laufwerk: {driveLetter} ({description})");
+                        
+                        if (!string.IsNullOrEmpty(driveLetter))
                         {
-                            IndexDirectory(subDir, currentDepth + 1, isFullIndexing);
-                        });
-                    }
-                    else
-                    {
-                        foreach (DirectoryInfo subDir in subDirs)
-                        {
-                            IndexDirectory(subDir, currentDepth + 1, isFullIndexing);
+                            if (!driveLetter.EndsWith("\\"))
+                                driveLetter += "\\";
+                                
+                            result.Add(driveLetter);
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                // Fehler nur für die wichtigsten Pfade loggen
-                if (directory.FullName.StartsWith("C:\\"))
+                OnIndexingStatusChanged($"Fehler bei Methode 3: {ex.Message}");
+            }
+            
+            // METHODE 4: Direkte Pfadprüfung A-Z
+            OnIndexingStatusChanged("Methode 4: Direkte Prüfung aller Laufwerksbuchstaben A-Z");
+            for (char c = 'A'; c <= 'Z'; c++)
+            {
+                string path = $"{c}:\\";
+                try
                 {
-                    OnIndexingStatusChanged($"Fehler beim Indexieren von {directory.FullName}: {ex.Message}");
+                    if (Directory.Exists(path))
+                    {
+                        result.Add(path);
+                        OnIndexingStatusChanged($"Laufwerk {path} existiert");
+                    }
                 }
+                catch
+                {
+                    // Ignoriere Fehler - manche Pfade werfen Exceptions
+                }
+            }
+            
+            // Als Liste zurückgeben
+            return result.ToList();
+        }
+        
+        // Indiziert häufig verwendete Pfade zuerst für schnelle Ergebnisse
+        private void IndexPopularPaths()
+        {
+            var popularPaths = new List<string>
+            {
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + "\\Documents",
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + "\\Downloads",
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + "\\Desktop",
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + "\\Pictures",
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)
+            };
+            
+            OnIndexingStatusChanged("Indexiere häufig verwendete Pfade...");
+            
+            foreach (var path in popularPaths)
+            {
+                if (_cts.Token.IsCancellationRequested)
+                    break;
+                    
+                try
+                {
+                    if (Directory.Exists(path))
+                    {
+                        OnIndexingStatusChanged($"Indexiere {path}...");
+                        IndexDirectoryRecursive(new DirectoryInfo(path), 0);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    OnIndexingStatusChanged($"Fehler bei {path}: {ex.Message}");
+                }
+            }
+        }
+        
+        // Einfache rekursive Indizierung eines Verzeichnisses
+        private void IndexDirectoryRecursive(DirectoryInfo directory, int depth)
+        {
+            if (_cts.Token.IsCancellationRequested || depth > MAX_SEARCH_DEPTH)
+                return;
+                
+            // Bereits besuchte Pfade überspringen
+            if (_indexedPaths.ContainsKey(directory.FullName))
+                return;
+                
+            _indexedPaths.TryAdd(directory.FullName, true);
+            
+            // Prüfe, ob der Ordner ausgeschlossen werden soll
+            if (ShouldExcludeDirectory(directory))
+                return;
+
+            // Statusaktualisierung (nicht zu oft, um Performance zu erhalten)
+            if (Interlocked.Increment(ref _processedFolderCount) % 10 == 0)
+            {
+                OnIndexingStatusChanged($"{_indexedFiles.Count} Dateien, {_processedFolderCount} Ordner", 
+                    directory.FullName);
+                // Fortschritt auch an den SplashScreen melden
+                OnIndexingProgress(directory.FullName, _indexedFiles.Count);
+            }
+
+            // Dateien im aktuellen Verzeichnis
+            try
+            {
+                ProcessFiles(directory.GetFiles());
+                
+                // Nach jeder Verzeichnisverarbeitung den Fortschritt melden
+                if (_indexedFiles.Count % 50 == 0)
+                {
+                    OnIndexingProgress(directory.FullName, _indexedFiles.Count);
+                }
+            }
+            catch (UnauthorizedAccessException) { }
+            catch (IOException) { }
+            catch (Exception ex)
+            {
+                OnIndexingStatusChanged($"Fehler beim Lesen von Dateien in {directory.FullName}: {ex.Message}");
+            }
+
+            // Unterverzeichnisse
+            try
+            {
+                foreach (var subDir in directory.GetDirectories())
+                {
+                    if (_cts.Token.IsCancellationRequested)
+                        break;
+                        
+                    IndexDirectoryRecursive(subDir, depth + 1);
+                }
+            }
+            catch (UnauthorizedAccessException) { }
+            catch (IOException) { }
+            catch (Exception ex)
+            {
+                OnIndexingStatusChanged($"Fehler beim Lesen von Unterverzeichnissen in {directory.FullName}: {ex.Message}");
             }
         }
 
         private bool ShouldExcludeDirectory(DirectoryInfo directory)
         {
-            if (IndexEverything && !_excludedFolders.Contains(directory.Name))
-                return false;
-            
-            // Name-basierte Ausschlüsse
+            // Ausgeschlossene Ordnernamen (z.B. Recycle Bin)
             if (_excludedFolders.Contains(directory.Name))
                 return true;
             
-            // Versteckte oder Systemordner überspringen
-            try
+            // Versteckte oder Systemordner optional ausschließen
+            if (!INCLUDE_HIDDEN_SYSTEM_FOLDERS)
             {
-                if (!IndexEverything && 
-                    ((directory.Attributes & FileAttributes.Hidden) == FileAttributes.Hidden || 
-                    (directory.Attributes & FileAttributes.System) == FileAttributes.System))
+                try
                 {
-                    return true;
+                    if ((directory.Attributes & FileAttributes.Hidden) == FileAttributes.Hidden || 
+                        (directory.Attributes & FileAttributes.System) == FileAttributes.System)
+                    {
+                        return true;
+                    }
                 }
+                catch { }
             }
-            catch { }
 
             return false;
         }
@@ -295,9 +341,11 @@ namespace BetterFinder
             if (files == null || files.Length == 0)
                 return;
 
+            int counter = 0;
             foreach (var file in files)
             {
                 _indexedFiles.Add(file);
+                counter++;
 
                 string ext = file.Extension.ToLowerInvariant();
                 _filesByExtension.AddOrUpdate(
@@ -312,6 +360,18 @@ namespace BetterFinder
                         }
                     }
                 );
+                
+                // Regelmäßig den Fortschritt melden (nach jeweils 20 Dateien)
+                if (counter % 20 == 0)
+                {
+                    OnIndexingProgress(file.DirectoryName, _indexedFiles.Count);
+                }
+            }
+            
+            // Nach jeder Verarbeitungsgruppe den Fortschritt melden
+            if (files.Length > 0)
+            {
+                OnIndexingProgress(files[0].DirectoryName, _indexedFiles.Count);
             }
         }
 
@@ -320,14 +380,15 @@ namespace BetterFinder
             if (string.IsNullOrWhiteSpace(searchTerm))
                 return Enumerable.Empty<FileInfo>();
 
-            searchTerm = searchTerm.ToLowerInvariant();
+            searchTerm = searchTerm.ToLowerInvariant().Trim();
 
-            // Suche nach Dateinamen
+            // Suche nach Dateinamen oder Pfad
             var results = _indexedFiles.Where(f => 
                 f.Name.ToLowerInvariant().Contains(searchTerm) || 
+                Path.GetFileNameWithoutExtension(f.Name).ToLowerInvariant().Contains(searchTerm) ||
                 f.FullName.ToLowerInvariant().Contains(searchTerm));
 
-            // Berücksichtige Dateierweiterungen
+            // Nach Dateierweiterung suchen (z.B. ".txt")
             if (searchTerm.StartsWith("."))
             {
                 if (_filesByExtension.TryGetValue(searchTerm, out var filesByExt))
@@ -347,6 +408,35 @@ namespace BetterFinder
         protected virtual void OnIndexingCompleted()
         {
             IndexingCompleted?.Invoke(this, EventArgs.Empty);
+            
+            // Neues Event für die Indexierung abgeschlossen
+            IndexingComplete?.Invoke(this, EventArgs.Empty);
+        }
+        
+        protected virtual void OnIndexingProgress(string currentFolder, int indexedFilesCount)
+        {
+            var args = new IndexingProgressEventArgs(
+                currentFolder,
+                indexedFilesCount,
+                _indexedFiles.Select(f => f.FullName).ToList()
+            );
+            
+            IndexingProgress?.Invoke(this, args);
+        }
+    }
+    
+    // Neue Klasse für die Fortschrittsmeldung
+    public class IndexingProgressEventArgs : EventArgs
+    {
+        public string CurrentFolder { get; }
+        public int IndexedFilesCount { get; }
+        public IReadOnlyList<string> IndexedFiles { get; }
+        
+        public IndexingProgressEventArgs(string currentFolder, int indexedFilesCount, List<string> indexedFiles)
+        {
+            CurrentFolder = currentFolder;
+            IndexedFilesCount = indexedFilesCount;
+            IndexedFiles = indexedFiles;
         }
     }
 } 

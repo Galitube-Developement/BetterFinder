@@ -2,104 +2,100 @@ using System;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
+using System.IO;
 
 namespace BetterFinder
 {
     public partial class SplashScreen : Window
     {
-        private FileIndexer _fileIndexer;
-        public event EventHandler IndexingCompleted;
+        private FileIndexer _indexer;
+        private List<string> _indexedFiles = new List<string>();
+        private bool _indexSystemFiles = false;
         private DateTime _startTime;
+
+        public event EventHandler IndexingCompleted;
 
         public SplashScreen()
         {
             InitializeComponent();
         }
 
-        public void StartIndexing()
-        {
-            _startTime = DateTime.Now;
-            _fileIndexer = new FileIndexer();
-            
-            // Setze die IndexEverything-Eigenschaft basierend auf der Checkbox
-            _fileIndexer.IndexEverything = IndexEverythingCheckbox.IsChecked ?? false;
-            
-            _fileIndexer.IndexingStatusChanged += (s, e) =>
-            {
-                Dispatcher.Invoke(() =>
-                {
-                    StatusText.Text = e.Message;
-                    
-                    if (e.Message.StartsWith("Indiziere"))
-                    {
-                        CurrentDriveText.Text = e.Message;
-                    }
-                    else if (e.Message.Contains("Dateien indiziert"))
-                    {
-                        FileCountText.Text = e.Message;
-                    }
-                    
-                    // Aktuellen Ordner anzeigen, wenn verfügbar
-                    if (!string.IsNullOrEmpty(e.CurrentFolder))
-                    {
-                        CurrentFolderText.Text = $"Aktueller Ordner: {e.CurrentFolder}";
-                    }
-                });
-            };
-
-            _fileIndexer.IndexingCompleted += (s, e) =>
-            {
-                Dispatcher.Invoke(() =>
-                {
-                    var timeElapsed = DateTime.Now - _startTime;
-                    StatusText.Text = "Indizierung abgeschlossen";
-                    
-                    // Zeige die Gesamtzahl der indizierten Dateien und die verstrichene Zeit an
-                    FileCountText.Text = $"{_fileIndexer.FileCount:N0} Dateien in {timeElapsed.TotalSeconds:N1} Sekunden indiziert";
-                    
-                    // Fortschrittsanzeige auf 100% setzen
-                    IndexingProgress.IsIndeterminate = false;
-                    IndexingProgress.Value = 100;
-                    IndexingProgress.Foreground = new SolidColorBrush(Colors.LimeGreen);
-                    
-                    // Fortschrittsbalken pulsieren lassen
-                    var animation = new ColorAnimation();
-                    animation.From = Colors.LimeGreen;
-                    animation.To = Color.FromRgb(0, 120, 215); // #0078D7
-                    animation.Duration = TimeSpan.FromSeconds(0.8);
-                    animation.AutoReverse = true;
-                    animation.RepeatBehavior = RepeatBehavior.Forever;
-                    
-                    IndexingProgress.Foreground.BeginAnimation(SolidColorBrush.ColorProperty, animation);
-                    
-                    // Löst das Event aus, das signalisiert, dass die Indexierung abgeschlossen ist
-                    IndexingCompleted?.Invoke(this, EventArgs.Empty);
-                });
-            };
-
-            // Starte die Indexierung
-            _fileIndexer.StartIndexing();
-        }
-
         public FileIndexer GetFileIndexer()
         {
-            return _fileIndexer;
+            return _indexer;
         }
-        
-        private void IndexEverythingCheckbox_Checked(object sender, RoutedEventArgs e)
+
+        public async void StartIndexing()
         {
-            // Zeige Warnung, dass dies länger dauern kann
-            MessageBox.Show(
-                "Achtung: Bei Aktivierung dieser Option werden auch System- und versteckte Ordner indexiert. " +
-                "Dies kann deutlich länger dauern und mehr Speicher benötigen.", 
-                "Vollständige Indexierung", 
-                MessageBoxButton.OK, 
-                MessageBoxImage.Information);
+            _startTime = DateTime.Now;
+            _indexer = new FileIndexer();
+            _indexer.IndexingProgress += Indexer_IndexingProgress;
+            _indexer.IndexingComplete += Indexer_IndexingComplete;
+            _indexer.IndexSystemFiles = _indexSystemFiles;
+
+            // Starte die Indexierung
+            await Task.Run(() => _indexer.StartIndexing());
         }
-        
-        private void IndexEverythingCheckbox_Unchecked(object sender, RoutedEventArgs e)
+
+        private void Indexer_IndexingProgress(object sender, IndexingProgressEventArgs e)
         {
-            // Nichts zu tun bei Deaktivierung
+            // UI-Updates müssen im UI-Thread erfolgen
+            Dispatcher.Invoke(() =>
+            {
+                IndexingStatus.Text = $"Indexiere: {e.CurrentFolder}";
+                FileCount.Text = $"{e.IndexedFilesCount} Dateien indiziert";
+                _indexedFiles = e.IndexedFiles.ToList();
+            });
+        }
+
+        private void Indexer_IndexingComplete(object sender, EventArgs e)
+        {
+            // UI-Updates müssen im UI-Thread erfolgen
+            Dispatcher.Invoke(() =>
+            {
+                IndexingStatus.Text = "Indexierung abgeschlossen";
+                IndexingProgressBar.IsIndeterminate = false;
+                IndexingProgressBar.Value = 100;
+                
+                // Benachrichtige App über den Abschluss der Indexierung
+                IndexingCompleted?.Invoke(this, EventArgs.Empty);
+            });
+        }
+
+        private void IndexSystemFilesCheckbox_Checked(object sender, RoutedEventArgs e)
+        {
+            _indexSystemFiles = true;
+            if (_indexer != null)
+                _indexer.IndexSystemFiles = true;
+            
+            SystemFilesWarning.Visibility = Visibility.Visible;
+        }
+
+        private void IndexSystemFilesCheckbox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _indexSystemFiles = false;
+            if (_indexer != null)
+                _indexer.IndexSystemFiles = false;
+            
+            SystemFilesWarning.Visibility = Visibility.Collapsed;
+        }
+
+        private void StartSearchingButton_Click(object sender, RoutedEventArgs e)
+        {
+            OpenMainWindow();
+        }
+
+        private void OpenMainWindow()
+        {
+            // Hauptfenster öffnen und indizierte Dateien übergeben
+            var mainWindow = new MainWindow(_indexer, _indexedFiles);
+            mainWindow.Show();
+            
+            // Schließe den SplashScreen
+            this.Close();
         }
     }
 } 

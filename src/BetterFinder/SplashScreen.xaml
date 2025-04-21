@@ -5,51 +5,57 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:BetterFinder"
         mc:Ignorable="d"
-        Title="BetterFinder" Height="350" Width="500" Background="Transparent"
-        WindowStyle="None" ResizeMode="NoResize" 
-        WindowStartupLocation="CenterScreen"
-        AllowsTransparency="True">
+        Title="BetterFinder" Height="350" Width="480" WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize" WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Icon="/Resources/BetterFinder-Icon.png">
     <Border BorderBrush="#444444" BorderThickness="1" CornerRadius="10" Background="#FF222222">
-        <Grid>
+        <Grid Margin="20">
             <Grid.RowDefinitions>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- Titel -->
-            <TextBlock Grid.Row="0" Text="BetterFinder" FontSize="24" Foreground="White" 
-                       HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold"/>
-
-            <!-- Fortschrittsanzeige -->
-            <StackPanel Grid.Row="1" Margin="20">
-                <TextBlock x:Name="StatusText" Text="Starte Indizierung..." Foreground="White" 
-                          HorizontalAlignment="Center" Margin="0,0,0,10"/>
-                <ProgressBar x:Name="IndexingProgress" Height="10" IsIndeterminate="True" 
-                            Background="#333333" Foreground="#0078D7"/>
-                <TextBlock x:Name="FileCountText" Text="0 Dateien indiziert" Foreground="#AAAAAA" 
-                          HorizontalAlignment="Center" Margin="0,10,0,0" FontSize="12"/>
+            <!-- Header mit Logo -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,20">
+                <Image Source="/Resources/BetterFinder-Icon.png" Width="64" Height="64" Margin="0,0,15,0"/>
+                <TextBlock Text="BetterFinder" FontSize="24" FontWeight="Bold" 
+                           Foreground="White" VerticalAlignment="Center"/>
             </StackPanel>
 
-            <!-- Aktuelle Laufwerke/Verzeichnisse -->
-            <TextBlock Grid.Row="2" x:Name="CurrentDriveText" Text="" Foreground="#888888" 
-                      HorizontalAlignment="Center" Margin="5,5,5,0"/>
-            <TextBlock Grid.Row="2" x:Name="CurrentFolderText" Text="" Foreground="#666666" 
-                      HorizontalAlignment="Center" Margin="5,25,5,5" TextWrapping="Wrap" MaxWidth="450" FontSize="11"/>
+            <!-- Content -->
+            <StackPanel Grid.Row="1" VerticalAlignment="Center">
+                <TextBlock Text="Indexierung der Dateien..." Foreground="White" 
+                           HorizontalAlignment="Center" Margin="0,0,0,15" TextWrapping="Wrap"/>
+                <ProgressBar x:Name="IndexingProgressBar" Height="10" Margin="0,5" 
+                             Foreground="#0078D7" Background="#333333" IsIndeterminate="True"/>
+                <TextBlock x:Name="IndexingStatus" Text="Initialisiere..." Foreground="#AAAAAA" 
+                           HorizontalAlignment="Center" Margin="0,5" TextWrapping="Wrap"/>
+                <TextBlock x:Name="FileCount" Text="0 Dateien indiziert" Foreground="#AAAAAA" 
+                           HorizontalAlignment="Center" Margin="0,5" TextWrapping="Wrap"/>
+            </StackPanel>
 
-            <!-- Option zum vollständigen Indizieren -->
-            <CheckBox Grid.Row="3" x:Name="IndexEverythingCheckbox" Content="Auch System datein indexieren" 
-                     Foreground="White" HorizontalAlignment="Center" Margin="0,5,0,5" 
-                     Checked="IndexEverythingCheckbox_Checked" Unchecked="IndexEverythingCheckbox_Unchecked"/>
+            <!-- Settings -->
+            <CheckBox Grid.Row="2" x:Name="IndexSystemFilesCheckbox" Content="Systemdateien indizieren" 
+                      Foreground="White" Margin="0,20,0,0" Checked="IndexSystemFilesCheckbox_Checked"
+                      Unchecked="IndexSystemFilesCheckbox_Unchecked"/>
 
-
-            <!-- Hinweis -->
-            <TextBlock Grid.Row="5" Text="Bitte warten Sie, während alle Dateien indiziert werden..." 
-                      Foreground="#AAAAAA" HorizontalAlignment="Center" VerticalAlignment="Center"
-                      TextWrapping="Wrap" MaxWidth="400"/>
+            <!-- Warning for system files -->
+            <Border Grid.Row="3" x:Name="SystemFilesWarning" BorderThickness="1" 
+                    BorderBrush="#FFCC00" Background="#332200" CornerRadius="5" 
+                    Padding="10" Margin="0,10,0,0" Visibility="Collapsed">
+                <TextBlock Text="Warnung: Das Indizieren von Systemdateien kann die Indizierungszeit erheblich verlängern und mehr Speicherplatz beanspruchen."
+                           Foreground="#FFCC00" TextWrapping="Wrap"/>
+            </Border>
+            
+            <!-- Start Searching Button -->
+            <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20,0,0">
+                <Button x:Name="StartSearchingButton" Content="Jetzt mit der Suche beginnen" 
+                        Padding="15,8" Background="#0078D7" Foreground="White" BorderThickness="0"
+                        Click="StartSearchingButton_Click"/>
+            </StackPanel>
         </Grid>
     </Border>
 </Window> 

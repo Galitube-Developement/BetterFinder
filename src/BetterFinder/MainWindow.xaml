@@ -5,30 +5,34 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:BetterFinder"
         mc:Ignorable="d"
-        Title="BetterFinder" Height="450" Width="600" Background="Transparent"
+        Title="BetterFinder" Height="450" Width="650" Background="Transparent"
         WindowStyle="None" ResizeMode="NoResize" 
         KeyDown="Window_KeyDown" WindowStartupLocation="CenterScreen"
-        AllowsTransparency="True">
+        AllowsTransparency="True" Icon="/Resources/BetterFinder-Icon.png">
     <Border BorderBrush="#444444" BorderThickness="1" CornerRadius="10" Background="#FF222222">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <!-- Suchleiste -->
             <Border Grid.Row="0" Background="#FF333333" Padding="10" BorderThickness="0,0,0,1" 
-                    BorderBrush="#FF444444" CornerRadius="10,10,0,0">
+                    BorderBrush="#FF444444" CornerRadius="10,10,0,0"
+                    MouseDown="TopBar_MouseDown">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <Button Grid.Column="0" Width="30" Height="30" Background="Transparent" BorderThickness="0" Margin="0,0,10,0">
-                        <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE721;" Foreground="White" FontSize="16"/>
-                    </Button>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <Image Source="/Resources/BetterFinder-Icon.png" Width="24" Height="24" Margin="0,0,10,0"/>
+                        <TextBlock Text="BetterFinder" Foreground="White" FontWeight="SemiBold" 
+                                   VerticalAlignment="Center" Margin="0,0,15,0"/>
+                    </StackPanel>
                     <Grid Grid.Column="1">
                         <TextBox x:Name="SearchBox" Height="30" Background="#FF222222" Foreground="White" BorderThickness="0"
                                 VerticalContentAlignment="Center" FontSize="14" KeyDown="SearchBox_KeyDown"
@@ -56,18 +60,33 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Image Grid.Column="0" Width="16" Height="16" Source="{Binding Icon}" Margin="0,0,10,0"/>
-                            <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="2" Text="{Binding Path}" Foreground="#FF888888" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Grid.Column="2" Text="{Binding Path}" Foreground="#FF888888" VerticalAlignment="Center" Margin="15,0,0,0" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
                         </Grid>
                     </DataTemplate>
                 </ListView.ItemTemplate>
             </ListView>
 
+            <!-- Indexierungsfortschritt -->
+            <Border Grid.Row="2" x:Name="IndexingStatusPanel" Background="#FF282828" BorderThickness="0,1,0,0" BorderBrush="#FF333333" Padding="10,5" Visibility="Collapsed">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock x:Name="IndexingStatusText" Text="Indizierung läuft..." Foreground="White" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                        <ProgressBar x:Name="IndexingProgressBar" Height="6" Margin="0,4,0,0" Background="#333333" Foreground="#0078D7" IsIndeterminate="True"/>
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" x:Name="IndexingFileCountText" Text="0 Dateien indiziert" Foreground="#AAAAAA" VerticalAlignment="Center" Margin="15,0,0,0" TextWrapping="NoWrap"/>
+                </Grid>
+            </Border>
+
             <!-- Statusbar -->
-            <StatusBar Grid.Row="2" Background="#FF333333" Foreground="White" Height="25"
+            <StatusBar Grid.Row="3" Background="#FF333333" Foreground="White" Height="28"
                       BorderBrush="#FF444444" BorderThickness="0,1,0,0">
                 <StatusBarItem>
-                    <TextBlock Name="StatusText" Text="Bereit"/>
+                    <TextBlock Name="StatusText" Text="Bereit" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
                 </StatusBarItem>
             </StatusBar>
         </Grid>

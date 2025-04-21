@@ -24,6 +24,22 @@
           }
         }
       },
+      "System.CodeDom/9.0.4": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.0/System.CodeDom.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/System.CodeDom.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/netcoreapp2.0/System.CodeDom.targets": {}
+        }
+      },
       "System.Drawing.Common/6.0.0": {
         "type": "package",
         "dependencies": {
@@ -51,6 +67,25 @@
             "assetType": "runtime",
             "rid": "win"
           }
+        }
+      },
+      "System.Management/9.0.4": {
+        "type": "package",
+        "dependencies": {
+          "System.CodeDom": "9.0.4"
+        },
+        "compile": {
+          "lib/netstandard2.0/System.Management.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/System.Management.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/netcoreapp2.0/System.Management.targets": {}
         }
       }
     }
@@ -82,6 +117,34 @@
         "runtimes/win/lib/net6.0/Microsoft.Win32.SystemEvents.xml",
         "runtimes/win/lib/netcoreapp3.1/Microsoft.Win32.SystemEvents.dll",
         "runtimes/win/lib/netcoreapp3.1/Microsoft.Win32.SystemEvents.xml",
+        "useSharedDesignerContext.txt"
+      ]
+    },
+    "System.CodeDom/9.0.4": {
+      "sha512": "aJdv7Z87PoPW8ijvGIincocooYRbH3Umtlz7OrJKf6GDInbdu1bvk5X1fFlmbl7WP+9ntoIBd7NjKz+siVFdHA==",
+      "type": "package",
+      "path": "system.codedom/9.0.4",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "LICENSE.TXT",
+        "PACKAGE.md",
+        "THIRD-PARTY-NOTICES.TXT",
+        "buildTransitive/net461/System.CodeDom.targets",
+        "buildTransitive/net462/_._",
+        "buildTransitive/net8.0/_._",
+        "buildTransitive/netcoreapp2.0/System.CodeDom.targets",
+        "lib/net462/System.CodeDom.dll",
+        "lib/net462/System.CodeDom.xml",
+        "lib/net8.0/System.CodeDom.dll",
+        "lib/net8.0/System.CodeDom.xml",
+        "lib/net9.0/System.CodeDom.dll",
+        "lib/net9.0/System.CodeDom.xml",
+        "lib/netstandard2.0/System.CodeDom.dll",
+        "lib/netstandard2.0/System.CodeDom.xml",
+        "system.codedom.9.0.4.nupkg.sha512",
+        "system.codedom.nuspec",
         "useSharedDesignerContext.txt"
       ]
     },
@@ -123,11 +186,41 @@
         "system.drawing.common.nuspec",
         "useSharedDesignerContext.txt"
       ]
+    },
+    "System.Management/9.0.4": {
+      "sha512": "MfY9+SrkSvchAoFiChTkhQYCAjBaQQ9u3LwiKmho7oTbujucnxCzORlPgLhId/ChLSptsQ/1UmtPGLZaKYVdsA==",
+      "type": "package",
+      "path": "system.management/9.0.4",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "LICENSE.TXT",
+        "PACKAGE.md",
+        "THIRD-PARTY-NOTICES.TXT",
+        "buildTransitive/net8.0/_._",
+        "buildTransitive/netcoreapp2.0/System.Management.targets",
+        "lib/net462/_._",
+        "lib/net8.0/System.Management.dll",
+        "lib/net8.0/System.Management.xml",
+        "lib/net9.0/System.Management.dll",
+        "lib/net9.0/System.Management.xml",
+        "lib/netstandard2.0/System.Management.dll",
+        "lib/netstandard2.0/System.Management.xml",
+        "runtimes/win/lib/net8.0/System.Management.dll",
+        "runtimes/win/lib/net8.0/System.Management.xml",
+        "runtimes/win/lib/net9.0/System.Management.dll",
+        "runtimes/win/lib/net9.0/System.Management.xml",
+        "system.management.9.0.4.nupkg.sha512",
+        "system.management.nuspec",
+        "useSharedDesignerContext.txt"
+      ]
     }
   },
   "projectFileDependencyGroups": {
     "net6.0-windows7.0": [
-      "System.Drawing.Common >= 6.0.0"
+      "System.Drawing.Common >= 6.0.0",
+      "System.Management >= 9.0.4"
     ]
   },
   "packageFolders": {
@@ -175,6 +268,10 @@
           "System.Drawing.Common": {
             "target": "Package",
             "version": "[6.0.0, )"
+          },
+          "System.Management": {
+            "target": "Package",
+            "version": "[9.0.4, )"
           }
         },
         "imports": [

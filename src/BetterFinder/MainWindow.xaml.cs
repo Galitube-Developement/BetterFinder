@@ -20,6 +20,7 @@ namespace BetterFinder
         private double _baseHeight;
         private double _itemHeight = 30; // Ungefähre Höhe eines ListView-Items
         private DispatcherTimer _searchTimer; // Timer für verzögerte Suche
+        private DispatcherTimer _indexingStatusTimer; // Timer für Indexierungsstatus-Updates
 
         public MainWindow(FileIndexer fileIndexer)
         {
@@ -45,6 +46,98 @@ namespace BetterFinder
                 SearchBox.Focus();
                 StatusText.Text = $"Bereit - {_fileIndexer.FileCount} Dateien indexiert";
             };
+        }
+
+        // Neuer Konstruktor für den Fall, dass die Indexierung noch läuft
+        public MainWindow(FileIndexer fileIndexer, List<string> indexedFiles)
+        {
+            InitializeComponent();
+
+            _fileItems = new ObservableCollection<FileItem>();
+            FileListView.ItemsSource = _fileItems;
+
+            // Basisgröße des Fensters speichern
+            _baseHeight = this.Height;
+
+            // Initialisiere den Timer für verzögerte Suche
+            _searchTimer = new DispatcherTimer();
+            _searchTimer.Interval = TimeSpan.FromMilliseconds(300); // 300ms Verzögerung
+            _searchTimer.Tick += SearchTimer_Tick;
+
+            // Verwende den bereits initialisierten FileIndexer
+            _fileIndexer = fileIndexer;
+
+            // Zeige den Indexierungsstatus an, wenn die Indexierung noch läuft
+            if (_fileIndexer.IsIndexing)
+            {
+                IndexingStatusPanel.Visibility = Visibility.Visible;
+                
+                // Timer für regelmäßige Updates des Indexierungsstatus
+                _indexingStatusTimer = new DispatcherTimer();
+                _indexingStatusTimer.Interval = TimeSpan.FromSeconds(1);
+                _indexingStatusTimer.Tick += IndexingStatusTimer_Tick;
+                _indexingStatusTimer.Start();
+                
+                // Melde sich für das Ereignis an, wenn die Indexierung abgeschlossen ist
+                _fileIndexer.IndexingCompleted += (s, e) => 
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        // Stoppe den Timer
+                        _indexingStatusTimer?.Stop();
+                        
+                        // Zeige den finalen Status an
+                        IndexingStatusText.Text = "Indexierung abgeschlossen";
+                        IndexingFileCountText.Text = $"{_fileIndexer.FileCount} Dateien indexiert";
+                        IndexingProgressBar.IsIndeterminate = false;
+                        IndexingProgressBar.Value = 100;
+                        
+                        // Blende den Status nach 5 Sekunden aus
+                        Task.Delay(5000).ContinueWith(_ => 
+                        {
+                            Dispatcher.Invoke(() =>
+                            {
+                                IndexingStatusPanel.Visibility = Visibility.Collapsed;
+                                StatusText.Text = $"Bereit - {_fileIndexer.FileCount} Dateien indexiert";
+                            });
+                        });
+                    });
+                };
+            }
+            
+            // Setze den Fokus auf das Suchfeld
+            Loaded += (s, e) => 
+            {
+                SearchBox.Focus();
+                StatusText.Text = _fileIndexer.IsIndexing 
+                    ? "Indexierung läuft noch..." 
+                    : $"Bereit - {_fileIndexer.FileCount} Dateien indexiert";
+            };
+        }
+
+        private void IndexingStatusTimer_Tick(object sender, EventArgs e)
+        {
+            // Aktualisiere den Indexierungsstatus
+            IndexingFileCountText.Text = $"{_fileIndexer.FileCount} Dateien indexiert";
+            
+            // Prüfe, ob die Indexierung noch läuft
+            if (!_fileIndexer.IsIndexing)
+            {
+                _indexingStatusTimer.Stop();
+                IndexingStatusText.Text = "Indexierung abgeschlossen";
+                IndexingProgressBar.IsIndeterminate = false;
+                IndexingProgressBar.Value = 100;
+                
+                // Blende den Status nach 5 Sekunden aus
+                Task.Delay(5000).ContinueWith(_ => 
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        IndexingStatusPanel.Visibility = Visibility.Collapsed;
+                        StatusText.Text = $"Bereit - {_fileIndexer.FileCount} Dateien indexiert";
+                    });
+                });
+            }
         }
 
         private void SearchTimer_Tick(object sender, EventArgs e)
@@ -93,6 +186,12 @@ namespace BetterFinder
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
             Close();
+        }
+
+        private void TopBar_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Left)
+                this.DragMove();
         }
 
         private void PerformSearch(string searchTerm)
