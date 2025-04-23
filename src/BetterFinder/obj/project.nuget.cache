@@ -1,10 +1,9 @@
 {
   "version": 2,
-  "dgSpecHash": "ZFr/aSWav4DSy0+8Ldir/2W+LOD+McR9lD+AHa/3cy99aLZjbfWiXAACqtDai7vPPmcyRv5WwPrY4Ek1NrllcQ==",
+  "dgSpecHash": "va3jUqCdTCDeAza3uxyrADmmwNl/4TCW5TZHUi68hIUFhizL5ApCIO83Ut2fDAZRPtvLzC+KAfErHwjS6HhMVQ==",
   "success": true,
   "projectFilePath": "C:\\Users\\galit\\Documents\\GitHub\\BetterFinder\\src\\BetterFinder\\BetterFinder.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\galit\\.nuget\\packages\\hardcodet.notifyicon.wpf\\1.1.0\\hardcodet.notifyicon.wpf.1.1.0.nupkg.sha512",
     "C:\\Users\\galit\\.nuget\\packages\\microsoft.win32.systemevents\\6.0.0\\microsoft.win32.systemevents.6.0.0.nupkg.sha512",
     "C:\\Users\\galit\\.nuget\\packages\\system.codedom\\9.0.4\\system.codedom.9.0.4.nupkg.sha512",
     "C:\\Users\\galit\\.nuget\\packages\\system.drawing.common\\6.0.0\\system.drawing.common.6.0.0.nupkg.sha512",

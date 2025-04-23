@@ -45,7 +45,7 @@ namespace BetterFinder
             // UI-Updates müssen im UI-Thread erfolgen
             Dispatcher.Invoke(() =>
             {
-                IndexingStatus.Text = "Indexierung läuft...";
+                IndexingStatus.Text = $"Indexiere: {e.CurrentFolder}";
                 FileCount.Text = $"{e.IndexedFilesCount} Dateien indiziert";
                 _indexedFiles = e.IndexedFiles.ToList();
             });

@@ -415,14 +415,13 @@ namespace BetterFinder
         
         protected virtual void OnIndexingProgress(string currentFolder, int indexedFilesCount)
         {
-            if (_isIndexing) // Nur Events auslösen, wenn die Indexierung läuft
-            {
-                // Konvertiere die indexierten Dateien in eine Liste von Pfaden für das Event
-                var indexedFilePaths = _indexedFiles.Select(f => f.FullName).ToList();
-                
-                // Löse das Event aus mit der aktuellen Anzahl indizierter Dateien
-                IndexingProgress?.Invoke(this, new IndexingProgressEventArgs("", indexedFilesCount, indexedFilePaths));
-            }
+            var args = new IndexingProgressEventArgs(
+                currentFolder,
+                indexedFilesCount,
+                _indexedFiles.Select(f => f.FullName).ToList()
+            );
+            
+            IndexingProgress?.Invoke(this, args);
         }
     }
     

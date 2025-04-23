@@ -9,22 +9,11 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
-using System.ComponentModel;
-using System.Windows.Interop;
-using System.Runtime.InteropServices;
 
 namespace BetterFinder
 {
     public partial class MainWindow : Window
     {
-        // Konstanten für Windows-Nachrichten
-        private const int WM_SYSCOMMAND = 0x0112;
-        private const int SC_CLOSE = 0xF060;
-        
-        // Import der Win32-API-Funktion
-        [DllImport("user32.dll")]
-        private static extern IntPtr DefWindowProc(IntPtr hWnd, int uMsg, IntPtr wParam, IntPtr lParam);
-
         private ObservableCollection<FileItem> _fileItems;
         private FileIndexer _fileIndexer;
         private const int MaxFilesToShow = 10; // Maximal 10 Dateien anzeigen
@@ -57,48 +46,6 @@ namespace BetterFinder
                 SearchBox.Focus();
                 StatusText.Text = $"Bereit - {_fileIndexer.FileCount} Dateien indexiert";
             };
-            
-            // Überschreibe das Standard-Close-Verhalten
-            this.Closing += MainWindow_Closing;
-            
-            // Handler für SourceInitialized hinzufügen, um Windows-Nachrichten zu verarbeiten
-            this.SourceInitialized += MainWindow_SourceInitialized;
-        }
-        
-        private void MainWindow_SourceInitialized(object sender, EventArgs e)
-        {
-            // Window Handle abrufen
-            var handle = new WindowInteropHelper(this).Handle;
-            
-            // HwndSource für dieses Fenster abrufen
-            HwndSource source = HwndSource.FromHwnd(handle);
-            
-            // Hook für Windows-Nachrichten hinzufügen
-            source?.AddHook(WndProc);
-        }
-        
-        private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
-        {
-            // Überprüfen, ob es ein SC_CLOSE Befehl ist (z.B. von der Taskleiste)
-            if (msg == WM_SYSCOMMAND && wParam.ToInt32() == SC_CLOSE)
-            {
-                System.Diagnostics.Debug.WriteLine("WndProc - SC_CLOSE intercepted - Hiding window instead of closing");
-                // Fenster verstecken statt schließen
-                this.Hide();
-                handled = true;
-                return IntPtr.Zero;
-            }
-            
-            return DefWindowProc(hwnd, msg, wParam, lParam);
-        }
-        
-        // Überschreibe das Standard-Close-Verhalten
-        private void MainWindow_Closing(object sender, CancelEventArgs e)
-        {
-            System.Diagnostics.Debug.WriteLine("MainWindow_Closing - Hiding window instead of closing");
-            // Verhindere das tatsächliche Schließen und verstecke das Fenster nur
-            e.Cancel = true;
-            this.Hide();
         }
 
         // Neuer Konstruktor für den Fall, dass die Indexierung noch läuft
@@ -232,17 +179,13 @@ namespace BetterFinder
         {
             if (e.Key == Key.Escape)
             {
-                System.Diagnostics.Debug.WriteLine("Escape pressed - Hiding window");
-                // Verstecke das Fenster statt es zu schließen
-                this.Hide();
+                Close();
             }
         }
 
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
-            System.Diagnostics.Debug.WriteLine("CloseButton clicked - Hiding window");
-            // Verstecke das Fenster statt es zu schließen
-            this.Hide();
+            Close();
         }
 
         private void TopBar_MouseDown(object sender, MouseButtonEventArgs e)
@@ -314,8 +257,8 @@ namespace BetterFinder
                         UseShellExecute = true
                     });
 
-                    // Verstecke das Fenster statt es zu schließen
-                    this.Hide();
+                    // Schließe das Programm nachdem eine Datei ausgewählt wurde
+                    Close();
                 }
                 catch (Exception ex)
                 {
@@ -323,29 +266,6 @@ namespace BetterFinder
                         MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
-        }
-
-        public void ShowIndexingStatus()
-        {
-            // Zeige den Indexierungsstatus an
-            IndexingStatusPanel.Visibility = Visibility.Visible;
-            
-            // Setze die Statusanzeige zurück
-            IndexingStatusText.Text = "Indexierung läuft...";
-            IndexingFileCountText.Text = "Dateien werden indexiert...";
-            IndexingProgressBar.IsIndeterminate = true;
-            
-            // Timer für regelmäßige Updates des Indexierungsstatus starten, wenn er nicht bereits läuft
-            if (_indexingStatusTimer == null || !_indexingStatusTimer.IsEnabled)
-            {
-                _indexingStatusTimer = new DispatcherTimer();
-                _indexingStatusTimer.Interval = TimeSpan.FromSeconds(1);
-                _indexingStatusTimer.Tick += IndexingStatusTimer_Tick;
-                _indexingStatusTimer.Start();
-            }
-            
-            // Status-Text aktualisieren
-            StatusText.Text = "Indexierung läuft...";
         }
     }
 

@@ -24,27 +24,13 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
-; Icon für den Installer
-SetupIconFile=BetterFinder\Resources\BetterFinder-Icon.ico
-; Die Wizard-Bilder werden entfernt, da sie Probleme verursachen
-; WizardImageFile und WizardSmallImageFile benötigen spezielle Formate/Größen
+; Grafik für den Installer (optional)
+; SetupIconFile=BetterFinder\Resources\BetterFinder-Icon.ico
 OutputDir=..\installer
 OutputBaseFilename=BetterFinder_Setup
-Compression=lzma2/ultra64
-SolidCompression=true
-InternalCompressLevel=ultra64
-LZMAUseSeparateProcess=yes
-; Reduziert False-Positive-Erkennungen
-UninstallDisplayName={#MyAppName}
-VersionInfoDescription=Installer für {#MyAppName}
-VersionInfoProductName={#MyAppName}
-VersionInfoCompany={#MyAppPublisher}
-VersionInfoCopyright=(c) 2025 {#MyAppPublisher}
-AppCopyright=(c) 2025 {#MyAppPublisher}
-PrivilegesRequired=lowest
+Compression=lzma
+SolidCompression=yes
 WizardStyle=modern
-; NoEncryption hilft gegen False-Positives
-Encryption=no
 
 [Languages]
 Name: "german"; MessagesFile: "compiler:Languages\German.isl"

@@ -10,18 +10,15 @@
 
   <ItemGroup>
     <None Remove="Resources\BetterFinder-Icon.png" />
-    <None Remove="Resources\BetterFinder-Icon.ico" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="1.1.0" />
     <PackageReference Include="System.Drawing.Common" Version="6.0.0" />
     <PackageReference Include="System.Management" Version="9.0.4" />
   </ItemGroup>
 
   <ItemGroup>
     <Resource Include="Resources\BetterFinder-Icon.png" />
-    <Resource Include="Resources\BetterFinder-Icon.ico" />
   </ItemGroup>
 
 </Project> 

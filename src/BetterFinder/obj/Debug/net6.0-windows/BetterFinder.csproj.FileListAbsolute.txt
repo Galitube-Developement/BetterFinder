@@ -25,4 +25,3 @@ C:\Users\galit\Documents\GitHub\BetterFinder\src\BetterFinder\bin\Debug\net6.0-w
 C:\Users\galit\Documents\GitHub\BetterFinder\src\BetterFinder\bin\Debug\net6.0-windows\System.Management.dll
 C:\Users\galit\Documents\GitHub\BetterFinder\src\BetterFinder\obj\Debug\net6.0-windows\BetterFinder.csproj.CopyComplete
 C:\Users\galit\Documents\GitHub\BetterFinder\src\BetterFinder\obj\Debug\net6.0-windows\App.baml
-C:\Users\galit\Documents\GitHub\BetterFinder\src\BetterFinder\bin\Debug\net6.0-windows\Hardcodet.NotifyIcon.Wpf.dll
