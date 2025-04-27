@@ -1,112 +1,112 @@
 @echo off
 echo ===================================================
-echo        BetterFinder wird gestartet...
+echo        Starting BetterFinder...
 echo ===================================================
 echo.
 
-:: Bereinigung von eventuell laufenden Python-Prozessen
-echo Pruefe laufende Python-Prozesse...
+:: Cleanup of potentially running Python processes
+echo Checking running Python processes...
 tasklist /FI "IMAGENAME eq python.exe" 2>NUL | find /I /N "python.exe" >NUL
 if "%ERRORLEVEL%"=="0" (
-    echo Beende laufende Python-Prozesse...
+    echo Terminating running Python processes...
     taskkill /F /IM python.exe >NUL 2>&1
     timeout /t 2 /nobreak >NUL
 )
 
-:: Prüfen, ob Python installiert ist
-echo Pruefe Python-Installation...
+:: Check if Python is installed
+echo Checking Python installation...
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo Python wurde nicht gefunden!
+    echo Python was not found!
     echo.
-    echo Bitte Python 3.8 oder neuer installieren und installer.bat ausfuehren.
+    echo Please install Python 3.8 or newer and run installer.bat.
     echo.
     pause
     exit /B 1
 ) else (
     for /f "tokens=2" %%a in ('python --version 2^>^&1') do set PYTHON_VERSION=%%a
-    echo Python %PYTHON_VERSION% gefunden.
+    echo Python %PYTHON_VERSION% found.
 )
 
-:: Prüfen, ob die Abhängigkeiten installiert sind
-echo Pruefe Abhaengigkeiten...
+:: Check if dependencies are installed
+echo Checking dependencies...
 python -c "import PyQt5" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo PyQt5 nicht installiert! Installiere Abhaengigkeiten...
+    echo PyQt5 not installed! Installing dependencies...
     python -m pip install -r requirements.txt
     if %errorlevel% neq 0 (
-        echo Versuche einzelne Installation der kritischen Komponenten...
+        echo Attempting individual installation of critical components...
         python -m pip install PyQt5==5.15.9
         python -m pip install pywin32==306
         if %errorlevel% neq 0 (
-            echo Fehler bei der Installation der Abhaengigkeiten.
-            echo Fuehren Sie bitte 'installer.bat' aus, um alle Abhaengigkeiten zu installieren.
+            echo Error installing dependencies.
+            echo Please run 'installer.bat' to install all dependencies.
             pause
             exit /B 1
         )
     )
 )
 
-:: Prüfen, ob alte Datenbank gesperrt ist und ggf. bereinigen
-echo Pruefe alte Datenbankdateien...
+:: Check if old database is locked and clean up if necessary
+echo Checking old database files...
 set DB_PATH=%USERPROFILE%\BetterFinder
 if exist "%DB_PATH%\index.db" (
-    echo Stelle sicher, dass Datenbank nicht gesperrt ist...
-    :: Versuche, die WAL-Datei zu löschen, falls vorhanden
+    echo Ensuring database is not locked...
+    :: Try to delete the WAL file if it exists
     if exist "%DB_PATH%\index.db-wal" (
         del /F /Q "%DB_PATH%\index.db-wal" >nul 2>&1
         if exist "%DB_PATH%\index.db-wal" (
-            echo Warnung: Konnte WAL-Datei nicht loeschen, Datenbank koennte gesperrt sein.
+            echo Warning: Could not delete WAL file, database may be locked.
         ) else (
-            echo WAL-Datei erfolgreich entfernt.
+            echo WAL file successfully removed.
         )
     )
     if exist "%DB_PATH%\index.db-shm" (
         del /F /Q "%DB_PATH%\index.db-shm" >nul 2>&1
         if exist "%DB_PATH%\index.db-shm" (
-            echo Warnung: Konnte SHM-Datei nicht loeschen, Datenbank koennte gesperrt sein.
+            echo Warning: Could not delete SHM file, database may be locked.
         ) else (
-            echo SHM-Datei erfolgreich entfernt.
+            echo SHM file successfully removed.
         )
     )
     
-    :: Optional: Bei häufigen Problemen mit der Datenbank, Sicherung erstellen
+    :: Optional: Create a backup in case of frequent database problems
     if not exist "%DB_PATH%\index.db.bak" (
-        echo Erstelle Sicherung der Datenbank...
+        echo Creating database backup...
         copy "%DB_PATH%\index.db" "%DB_PATH%\index.db.bak" >nul 2>&1
     )
 )
 
-:: Programm starten
+:: Start the program
 echo.
 echo ===================================================
-echo Starte BetterFinder...
+echo Starting BetterFinder...
 echo ===================================================
 python -m app.main
 
-:: Fehlerbehandlung
+:: Error handling
 if %errorlevel% neq 0 (
     echo.
-    echo BetterFinder wurde mit einem Fehler beendet (Code: %errorlevel%).
+    echo BetterFinder exited with an error (Code: %errorlevel%).
     echo.
-    echo Moegliche Loesungen bei Problemen:
+    echo Possible solutions for problems:
     echo.
-    echo 1. Stellen Sie sicher, dass keine andere Instanz von BetterFinder laeuft.
-    echo 2. Bei Datenbankproblemen, versuchen Sie:
-    echo    a) Entfernen der Datenbankdatei:
+    echo 1. Make sure no other instance of BetterFinder is running.
+    echo 2. For database problems, try:
+    echo    a) Remove the database file:
     echo       del "%USERPROFILE%\BetterFinder\index.db"
-    echo    b) Wiederherstellen der Sicherung (falls vorhanden):
+    echo    b) Restore the backup (if available):
     echo       copy "%USERPROFILE%\BetterFinder\index.db.bak" "%USERPROFILE%\BetterFinder\index.db"
-    echo 3. Führen Sie 'installer.bat' erneut aus, um alle Komponenten zu aktualisieren.
+    echo 3. Run 'installer.bat' again to update all components.
     echo.
     
-    choice /C JN /M "Moechten Sie die Datenbank zuruecksetzen (J/N)? "
+    choice /C YN /M "Do you want to reset the database (Y/N)? "
     if %errorlevel% equ 1 (
-        echo Setze Datenbank zurueck...
+        echo Resetting database...
         if exist "%DB_PATH%\index.db" del /F /Q "%DB_PATH%\index.db"
         if exist "%DB_PATH%\index.db-wal" del /F /Q "%DB_PATH%\index.db-wal"
         if exist "%DB_PATH%\index.db-shm" del /F /Q "%DB_PATH%\index.db-shm"
-        echo Datenbank wurde zurueckgesetzt. Starten Sie BetterFinder neu.
+        echo Database has been reset. Restart BetterFinder.
     )
     
     pause

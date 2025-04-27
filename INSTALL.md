@@ -1,56 +1,56 @@
-# Installation von BetterFinder
+# Installing BetterFinder
 
-## Voraussetzungen
+## Prerequisites
 
-- Windows 10 oder neuer
-- Python 3.8 oder neuer
-- pip (Python-Paketmanager)
+- Windows 10 or newer
+- Python 3.8 or newer
+- pip (Python package manager)
 
 ## Installation
 
-1. **Python-Abhängigkeiten installieren:**
+1. **Install Python dependencies:**
 
    ```
    pip install -r requirements.txt
    ```
 
-2. **Programm starten:**
+2. **Start the program:**
 
    ```
    python -m app.main
    ```
 
-## Alternativ: Ausführbare Datei erstellen
+## Alternative: Create an executable file
 
-Sie können eine eigenständige .exe-Datei erstellen:
+You can create a standalone .exe file:
 
-1. **PyInstaller installieren:**
+1. **Install PyInstaller:**
 
    ```
    pip install pyinstaller
    ```
 
-2. **Ausführbare Datei erstellen:**
+2. **Create the executable file:**
 
    ```
    pyinstaller --onefile --windowed --icon=BetterFinder-Icon.png --add-data "BetterFinder-Icon.png;." --name BetterFinder app/main.py
    ```
 
-3. **Die erstellte .exe-Datei finden:**
+3. **Find the created .exe file:**
 
-   Nach Abschluss des Vorgangs finden Sie die BetterFinder.exe im Verzeichnis "dist".
+   After completion, you will find BetterFinder.exe in the "dist" directory.
 
-## Verwendung
+## Usage
 
-1. **Starten Sie BetterFinder**
-2. **Warten Sie, bis die Indizierung abgeschlossen ist**
-3. **Geben Sie den Suchbegriff ein und sehen Sie sofortige Ergebnisse**
+1. **Start BetterFinder**
+2. **Wait until indexing is complete**
+3. **Enter the search term and see immediate results**
 
 ## Features
 
-- Schnelle Dateisystem-Indizierung
-- Sofortige Suchergebnisse
-- Unterstützung für erweiterte Suchoperatoren (AND, OR, NOT)
-- Platzhaltersuche mit * und ?
-- Reguläre Ausdrücke mit Präfix "regex:"
-- Dateitypfilterung 
+- Fast file system indexing
+- Immediate search results
+- Support for advanced search operators (AND, OR, NOT)
+- Wildcard search with * and ?
+- Regular expressions with prefix "regex:"
+- File type filtering 

@@ -1,7 +1,7 @@
 """
-Haupteinstiegspunkt für BetterFinder
+Main entry point for BetterFinder
 
-Dieses Modul startet die Anwendung und initialisiert alle erforderlichen Komponenten.
+This module starts the application and initializes all required components.
 """
 
 import sys
@@ -15,62 +15,62 @@ from app.gui.main_window import MainWindow
 
 def parse_arguments():
     """
-    Parst Kommandozeilenargumente
+    Parses command line arguments
     
     Returns:
-        Geparste Argumente
+        Parsed arguments
     """
-    parser = argparse.ArgumentParser(description="BetterFinder - Schnelle Dateisuche für Windows")
+    parser = argparse.ArgumentParser(description="BetterFinder - Fast file search for Windows")
     
-    # Argumente für die Kommandozeilennutzung
-    parser.add_argument("--search", help="Führt eine Suche durch und gibt die Ergebnisse aus")
-    parser.add_argument("--type", help="Filtert die Suche nach Dateityp (z.B. .txt, .pdf)")
-    parser.add_argument("--reindex", action="store_true", help="Indiziert das Dateisystem neu")
+    # Arguments for command line usage
+    parser.add_argument("--search", help="Performs a search and outputs the results")
+    parser.add_argument("--type", help="Filters the search by file type (e.g. .txt, .pdf)")
+    parser.add_argument("--reindex", action="store_true", help="Reindexes the file system")
     
     return parser.parse_args()
 
 
 def run_command_line(args):
     """
-    Führt Kommandozeilenbefehle aus
+    Executes command line commands
     
     Args:
-        args: Geparste Kommandozeilenargumente
+        args: Parsed command line arguments
         
     Returns:
-        True, wenn die Anwendung im GUI-Modus gestartet werden soll,
-        False, wenn sie beendet werden soll
+        True if the application should start in GUI mode,
+        False if it should exit
     """
-    # Wenn --reindex angegeben wurde
+    # If --reindex was specified
     if args.reindex:
-        print("Indizierung wird durchgeführt...")
-        # Hier würde eine direkte Indizierung erfolgen
-        # In diesem Fall starten wir trotzdem die GUI, die die Indizierung übernimmt
+        print("Performing indexing...")
+        # A direct indexing would happen here
+        # In this case we still start the GUI, which handles the indexing
         return True
         
-    # Wenn eine Suche durchgeführt werden soll
+    # If a search should be performed
     if args.search:
-        print(f"Suche nach: {args.search}")
+        print(f"Searching for: {args.search}")
         if args.type:
-            print(f"Dateityp-Filter: {args.type}")
-        # Hier könnte eine direkte Suche implementiert werden
-        # Für diese Version starten wir die GUI
+            print(f"File type filter: {args.type}")
+        # A direct search could be implemented here
+        # For this version we start the GUI
         return True
         
-    # Standardmäßig GUI starten
+    # Start GUI by default
     return True
 
 
 def set_app_icon(app):
-    """Setzt das Anwendungsicon für die BetterFinder-Anwendung"""
+    """Sets the application icon for the BetterFinder application"""
     icon_paths = [
         os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", "icon.ico"),
         os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", "BetterFinder-Icon.png")
     ]
     
-    # Wenn wir in einer gefrorenen PyInstaller-Anwendung sind, ist der Pfad anders
+    # If we are in a frozen PyInstaller application, the path is different
     if getattr(sys, 'frozen', False):
-        # Bei PyInstaller-Build
+        # For PyInstaller build
         base_path = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(sys.executable)
         icon_paths.extend([
             os.path.join(base_path, "app", "resources", "icon.ico"),
@@ -79,43 +79,43 @@ def set_app_icon(app):
             os.path.join(base_path, "resources", "BetterFinder-Icon.png")
         ])
     
-    # Versuche, das Icon aus verschiedenen möglichen Pfaden zu laden
+    # Try to load the icon from various possible paths
     for icon_path in icon_paths:
         if os.path.exists(icon_path):
             try:
                 app.setWindowIcon(QIcon(icon_path))
-                print(f"Icon gesetzt von: {icon_path}")
+                print(f"Icon set from: {icon_path}")
                 return True
             except Exception as e:
-                print(f"Fehler beim Setzen des Icons von {icon_path}: {e}")
+                print(f"Error setting icon from {icon_path}: {e}")
     
-    print("Warnung: Kein gültiges Icon gefunden")
+    print("Warning: No valid icon found")
     return False
 
 
 def main():
     """
-    Haupteinstiegspunkt
+    Main entry point
     """
-    # Kommandozeilenargumente parsen
+    # Parse command line arguments
     args = parse_arguments()
     
-    # Prüfen, ob ein Kommandozeilenbefehl ausgeführt werden soll
+    # Check if a command line command should be executed
     should_start_gui = run_command_line(args)
     
     if should_start_gui:
-        # GUI-Modus starten
+        # Start GUI mode
         app = QApplication(sys.argv)
         app.setApplicationName("BetterFinder")
         app.setOrganizationName("BetterFinder")
         
-        # Setze das Anwendungsicon
+        # Set the application icon
         set_app_icon(app)
         
-        # Hauptfenster erstellen (mit Tray-Icon, kein sichtbares Fenster)
+        # Create main window (with tray icon, no visible window)
         window = MainWindow()
         
-        # Anwendung ausführen
+        # Run application
         sys.exit(app.exec_())
 
 

@@ -1,52 +1,52 @@
 =============================================
-BetterFinder Installer-Erstellung - Anleitung
+BetterFinder Installer Creation - Guide
 =============================================
 
-Diese Readme-Datei erklärt, wie du einen professionellen Installer für BetterFinder mit Inno Setup erstellst.
+This readme file explains how to create a professional installer for BetterFinder using Inno Setup.
 
-Voraussetzungen:
+Prerequisites:
 ---------------
-1. Die fertige BetterFinder.exe wurde mit PyInstaller erstellt (liegt im "dist"-Verzeichnis)
-2. Inno Setup ist installiert (Download: https://jrsoftware.org/isdl.php)
+1. The finished BetterFinder.exe has been created with PyInstaller (located in the "dist" directory)
+2. Inno Setup is installed (Download: https://jrsoftware.org/isdl.php)
 
-Installationsschritte für Inno Setup:
+Installation steps for Inno Setup:
 ------------------------------------
-1. Besuche https://jrsoftware.org/isdl.php
-2. Lade die neueste Version von Inno Setup herunter
-3. Führe die heruntergeladene Datei aus und folge den Anweisungen
-4. Wähle bei der Installation die Option "Inno Setup Preprocessor" aus
+1. Visit https://jrsoftware.org/isdl.php
+2. Download the latest version of Inno Setup
+3. Run the downloaded file and follow the instructions
+4. Select the "Inno Setup Preprocessor" option during installation
 
-Erstellen des Installers:
+Creating the Installer:
 ------------------------
-1. Stelle sicher, dass die "BetterFinder.exe" im Verzeichnis "dist" liegt
-2. Erstelle Bilddateien für den Installer (optional):
-   - wizard-image.bmp (164x314 Pixel) für die linke Seite des Installers
-   - wizard-small-image.bmp (55x58 Pixel) für die obere rechte Ecke
-   - Speichere diese im "installer_assets"-Verzeichnis
-3. Öffne "setup_script.iss" mit Inno Setup Compiler
-4. Klicke auf "Kompilieren" (oder drücke F9)
-5. Der Installer wird im "installer"-Verzeichnis erstellt
+1. Ensure "BetterFinder.exe" is in the "dist" directory
+2. Create image files for the installer (optional):
+   - wizard-image.bmp (164x314 pixels) for the left side of the installer
+   - wizard-small-image.bmp (55x58 pixels) for the upper right corner
+   - Save these in the "installer_assets" directory
+3. Open "setup_script.iss" with Inno Setup Compiler
+4. Click on "Compile" (or press F9)
+5. The installer will be created in the "installer" directory
 
-Der fertige Installer bietet:
+The finished installer offers:
 ---------------------------
-- Professionelles Erscheinungsbild
-- Auswahl des Installationsverzeichnisses
-- Optionen für:
-  * Desktop-Symbol erstellen
-  * Startmenü-Eintrag erstellen
-  * Autostart aktivieren
-- Kontextmenüeintrag für Ordner
-- Mehrsprachige Unterstützung (Deutsch/Englisch)
-- Automatische Erkennung der Systemkompatibilität
-- Saubere Deinstallation mit Option zum Löschen von Benutzereinstellungen
+- Professional appearance
+- Selection of installation directory
+- Options for:
+  * Create desktop icon
+  * Create start menu entry
+  * Enable autostart
+- Context menu entry for folders
+- Multilingual support (German/English)
+- Automatic detection of system compatibility
+- Clean uninstallation with option to delete user settings
 
-Anpassungen:
+Customizations:
 -----------
-Du kannst folgende Aspekte des Installers anpassen:
-1. Version und Herausgeber in den #define-Anweisungen am Anfang der .iss-Datei
-2. Standardinstallationsverzeichnis in DefaultDirName
-3. Layout und Design durch Ändern der WizardImageFile und WizardSmallImageFile
-4. Unterstützte Sprachen im [Languages]-Abschnitt
-5. Standardmäßig aktivierte Optionen durch Ändern der Flags in [Tasks]
+You can customize the following aspects of the installer:
+1. Version and publisher in the #define statements at the beginning of the .iss file
+2. Default installation directory in DefaultDirName
+3. Layout and design by changing the WizardImageFile and WizardSmallImageFile
+4. Supported languages in the [Languages] section
+5. Options enabled by default by changing the Flags in [Tasks]
 
-Bei Fragen oder Problemen kontaktiere das BetterFinder-Team. 
+If you have questions or problems, contact the BetterFinder team. 

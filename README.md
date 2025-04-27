@@ -1,66 +1,66 @@
 # BetterFinder
 
-BetterFinder ist ein leistungsstarkes Dateisuche-Programm, das eine schnelle Indizierung des Dateisystems ermöglicht und nahezu sofortige Suchergebnisse liefert.
+BetterFinder is a powerful file search program that enables fast indexing of the file system and provides nearly instant search results.
 
-## Hauptfunktionen
+## Main Features
 
-- Blitzschnelle Dateisystem-Indizierung
-- Sofortige Suchergebnisse während der Eingabe
-- Erweiterte Suchoperatoren (AND, OR, NOT, Platzhalter)
-- Dateitypfilterung
-- Suchverlauf und Dateiwiederherstellung
-- Netzwerksuche für freigegebene Laufwerke
-- Windows Explorer-Integration
-- Kommandozeilenunterstützung
+- Lightning-fast file system indexing
+- Instant search results while typing
+- Advanced search operators (AND, OR, NOT, wildcards)
+- File type filtering
+- Search history and file recovery
+- Network search for shared drives
+- Windows Explorer integration
+- Command line support
 
 ## Installation
 
-*Installationsanweisungen folgen*
+*Installation instructions follow*
 
-## Entwicklung
+## Development
 
-BetterFinder wird mit Python und Qt für die Benutzeroberfläche entwickelt.
+BetterFinder is developed with Python and Qt for the user interface.
 
-## Lizenz
+## License
 
-Siehe [LICENSE.md](LICENSE.md) für Lizenzinformationen.
+See [LICENSE.md](LICENSE.md) for license information.
 
-## Funktionen
+## Features
 
-- Schnelle Indizierung aller Dateien auf allen Festplattenlaufwerken
-- Sofortige Suche nach Dateinamen und Pfaden
-- Filterung nach Dateierweiterungen
-- Suche in Dateiinhalten mit der `content:` Syntax
-- Echtzeit-Aktualisierung des Index durch NTFS USN Journal
-- Dunkles Design mit moderner Benutzeroberfläche
+- Fast indexing of all files on all hard drives
+- Instant search for file names and paths
+- Filtering by file extensions
+- Search in file contents with the `content:` syntax
+- Real-time index updates through NTFS USN Journal
+- Dark design with modern user interface
 
-## Voraussetzungen
+## Requirements
 
 - Windows 10/11
-- .NET 6.0 oder höher
+- .NET 6.0 or higher
 
-## Verwendung
+## Usage
 
-Nach dem Start der Anwendung wird automatisch eine Indizierung aller Festplattenlaufwerke gestartet. Nach Abschluss der Indizierung kann die Suchleiste verwendet werden, um schnell nach Dateien zu suchen.
+After starting the application, indexing of all hard drives will automatically begin. After indexing is complete, the search bar can be used to quickly search for files.
 
-### Suchfunktionen
+### Search Functions
 
-- Einfache Suche: Geben Sie einen Teil des Dateinamens ein
-- Erweiterungssuche: Suchen Sie nach Dateien mit einer bestimmten Erweiterung (z.B. ".txt")
-- Inhaltssuche: Verwenden Sie `content:` gefolgt vom Suchbegriff, um in Dateiinhalten zu suchen
+- Simple search: Enter part of the file name
+- Extension search: Search for files with a specific extension (e.g. ".txt")
+- Content search: Use `content:` followed by the search term to search in file contents
 
 ## Everything vs. BetterFinder
 
-Wie das Original-Everything bietet BetterFinder:
+Like the original Everything, BetterFinder offers:
 
-- Schnelle Indizierung von Dateien und Ordnern
-- Echtzeit-Updates durch NTFS USN Journal
-- Geringe Ressourcennutzung
-- Inhaltssuche für Textdateien
+- Fast indexing of files and folders
+- Real-time updates through NTFS USN Journal
+- Low resource usage
+- Content search for text files
 
-## Leistung und Ressourcen
+## Performance and Resources
 
-- Schnelle Indizierung (wenige Sekunden bis Minuten)
-- Geringe Speichernutzung
-- Echtzeit-Aktualisierung des Index
-- NTFS USN Journal sorgt dafür, dass keine Änderungen verpasst werden, auch wenn BetterFinder nicht läuft
+- Fast indexing (few seconds to minutes)
+- Low memory usage
+- Real-time index updates
+- NTFS USN Journal ensures that no changes are missed, even when BetterFinder is not running

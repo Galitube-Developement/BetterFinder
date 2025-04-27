@@ -3,48 +3,48 @@ from PIL import Image
 
 def create_icon_from_png(png_path, ico_path):
     """
-    Erstellt eine .ico-Datei aus einer .png-Datei mit mehreren Auflösungen
+    Creates an .ico file from a .png file with multiple resolutions
     
     Args:
-        png_path: Pfad zur PNG-Datei
-        ico_path: Pfad, wo die ICO-Datei gespeichert werden soll
+        png_path: Path to the PNG file
+        ico_path: Path where the ICO file should be saved
     """
-    print(f"Erstelle Icon aus {png_path}...")
+    print(f"Creating icon from {png_path}...")
     
     if not os.path.exists(png_path):
-        print(f"Fehler: Die Datei {png_path} existiert nicht.")
+        print(f"Error: The file {png_path} does not exist.")
         return False
     
     try:
-        # Öffne das Bild
+        # Open the image
         img = Image.open(png_path)
         
-        # Erstelle Versionen in verschiedenen Größen für ein vollständiges Icon
+        # Create versions in different sizes for a complete icon
         icon_sizes = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
         
-        # Speichere als ICO mit verschiedenen Größen
+        # Save as ICO with different sizes
         img.save(ico_path, format='ICO', sizes=icon_sizes)
         
-        print(f"Icon erfolgreich erstellt: {ico_path}")
+        print(f"Icon successfully created: {ico_path}")
         
-        # Überprüfe die Dateigröße
+        # Check the file size
         size = os.path.getsize(ico_path)
-        print(f"Icon-Dateigröße: {size} Bytes")
+        print(f"Icon file size: {size} bytes")
         
         return True
     except Exception as e:
-        print(f"Fehler beim Erstellen des Icons: {e}")
+        print(f"Error creating the icon: {e}")
         return False
 
 if __name__ == "__main__":
-    # Pfade für die Dateien
+    # Paths for the files
     png_path = os.path.join("app", "resources", "BetterFinder-Icon.png")
     ico_path = os.path.join("app", "resources", "icon.ico")
     
-    # Erstelle das Icon
+    # Create the icon
     success = create_icon_from_png(png_path, ico_path)
     
     if success:
-        print("Icon wurde erfolgreich erstellt und kann nun für die Anwendung und den Installer verwendet werden.")
+        print("Icon was successfully created and can now be used for the application and installer.")
     else:
-        print("Fehler beim Erstellen des Icons.") 
+        print("Error creating the icon.") 
