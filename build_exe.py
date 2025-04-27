@@ -1,139 +1,217 @@
+"""
+BetterFinder executable builder script
+
+This script builds a standalone executable of BetterFinder using PyInstaller.
+It handles:
+1. Cleaning up previous build files
+2. Creating an executable with the correct icon
+3. Copying the executable to the right location
+"""
+
 import os
 import sys
-import subprocess
 import shutil
-import time
-from pathlib import Path
+import subprocess
+import traceback
 
-def build_exe():
-    print("BetterFinder .exe Builder")
-    print("========================")
-    
-    # Prüfe, ob wir im richtigen Verzeichnis sind
-    if not os.path.exists("app") or not os.path.exists("app/main.py"):
-        print("Fehler: Dieses Skript muss im Hauptverzeichnis des BetterFinder-Projekts ausgeführt werden.")
-        return 1
-    
-    # Versuche, laufende Prozesse zu beenden
+def print_header(text):
+    """Prints a formatted header text"""
+    print("=" * 30)
+    print(text)
+    print("=" * 30)
+
+def is_process_running(process_name):
+    """Checks if a process with the given name is running"""
     try:
-        print("Versuche laufende BetterFinder-Prozesse zu beenden...")
-        subprocess.run(["taskkill", "/F", "/IM", "BetterFinder.exe"], shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        # Kurz warten, damit die Prozesse Zeit haben, sich zu beenden
-        time.sleep(1)
-    except:
-        # Ignoriere Fehler, wenn kein Prozess gefunden wurde
-        pass
-    
-    # Bereinige alte Build-Verzeichnisse
-    for dir_name in ["build", "dist"]:
-        if os.path.exists(dir_name):
-            print(f"Entferne vorhandenes {dir_name}-Verzeichnis...")
+        # Windows method using tasklist
+        result = subprocess.run(
+            f'tasklist /FI "IMAGENAME eq {process_name}" /NH', 
+            shell=True, 
+            capture_output=True, 
+            text=True
+        )
+        return process_name.lower() in result.stdout.lower()
+    except Exception as e:
+        print(f"Error checking for running process: {e}")
+        return False
+
+def terminate_process(process_name):
+    """Tries to terminate a process with the given name"""
+    try:
+        subprocess.run(f'taskkill /F /IM {process_name}', shell=True)
+        print(f"Terminated {process_name}")
+        return True
+    except Exception as e:
+        print(f"Error terminating process: {e}")
+        return False
+
+def clean_build_directories():
+    """Removes previous build directories"""
+    directories = ['build', 'dist']
+    for directory in directories:
+        if os.path.exists(directory):
             try:
-                shutil.rmtree(dir_name, ignore_errors=True)
-                # Warten, bis Verzeichnisse gelöscht sind
-                timeout = 5
-                start_time = time.time()
-                while os.path.exists(dir_name) and time.time() - start_time < timeout:
-                    time.sleep(0.5)
-                
-                if os.path.exists(dir_name):
-                    print(f"Warnung: Konnte {dir_name} nicht vollständig löschen.")
+                print(f"Removing existing {directory} directory...")
+                shutil.rmtree(directory)
             except Exception as e:
-                print(f"Warnung: Fehler beim Löschen von {dir_name}: {e}")
-    
-    # Entferne auch .spec-Datei
+                print(f"Error removing {directory}: {e}")
+                traceback.print_exc()
+                return False
+    return True
+
+def clean_spec_file():
+    """Removes previous spec file"""
     spec_file = "BetterFinder.spec"
     if os.path.exists(spec_file):
         try:
             os.remove(spec_file)
-            print(f"Bestehende {spec_file} entfernt.")
+            print(f"Removed existing {spec_file}.")
+            return True
         except Exception as e:
-            print(f"Warnung: Konnte {spec_file} nicht löschen: {e}")
-    
-    # Entferne bestehende .exe im Hauptverzeichnis, falls vorhanden
-    exe_path = "BetterFinder.exe"
-    if os.path.exists(exe_path):
+            print(f"Error removing {spec_file}: {e}")
+            return False
+    return True
+
+def clean_exe_file():
+    """Removes previous executable in the root directory"""
+    exe_file = "BetterFinder.exe"
+    if os.path.exists(exe_file):
         try:
-            os.remove(exe_path)
-            print(f"Bestehende {exe_path} entfernt.")
+            os.remove(exe_file)
+            print(f"Removed existing {exe_file}.")
+            return True
         except Exception as e:
-            print(f"Warnung: Konnte {exe_path} nicht löschen: {e}")
-    
-    # Icon-Pfad
-    icon_path = os.path.join("app", "resources", "icon.ico")
-    
-    # Prüfe auf ein existierendes PNG-Bild, falls die .ico-Datei klein oder fehlerhaft ist
-    png_icon_path = os.path.join("app", "resources", "BetterFinder-Icon.png")
-    if os.path.exists(png_icon_path) and (not os.path.exists(icon_path) or os.path.getsize(icon_path) < 1000):
-        print(f"Versuche, Icon aus PNG-Datei zu erstellen: {png_icon_path}")
-        try:
-            from PIL import Image
-            # Erstelle .ico aus dem PNG
-            img = Image.open(png_icon_path)
-            icon_sizes = [(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
-            img.save(icon_path, format="ICO", sizes=icon_sizes)
-            print(f"Icon erfolgreich erstellt: {icon_path}")
-        except ImportError:
-            print("Warnung: PIL/Pillow nicht installiert. Icon kann nicht konvertiert werden.")
-            print("Installiere Pillow mit: pip install pillow")
-        except Exception as e:
-            print(f"Warnung: Fehler beim Erstellen des Icons: {e}")
-    
-    # PyInstaller-Befehl erstellen
-    pyinstaller_cmd = [
-        "pyinstaller",
-        "--name=BetterFinder",
-        "--onefile",  # Eine einzelne .exe-Datei erstellen
-        "--windowed",  # Keine Konsole anzeigen (für GUI-Anwendungen)
-        "--clean",  # Bereinige vor dem Build
-        "--noconfirm",  # Bestehende Dateien ohne Nachfrage überschreiben
-        "--add-data=app/resources;app/resources",  # Ressourcen einbinden
+            print(f"Error removing {exe_file}: {e}")
+            return False
+    return True
+
+def find_icon():
+    """Finds the icon file for the application"""
+    icon_paths = [
+        os.path.join("app", "resources", "icon.ico"),
+        os.path.join("app", "resources", "BetterFinder-Icon.ico"),
+        "icon.ico",
+        "BetterFinder-Icon.ico"
     ]
     
-    # Icon hinzufügen
-    if os.path.exists(icon_path) and os.path.getsize(icon_path) > 100:
-        pyinstaller_cmd.append(f"--icon={icon_path}")
-        print(f"Icon wird verwendet: {icon_path}")
+    for path in icon_paths:
+        if os.path.exists(path):
+            print(f"Using icon: {path}")
+            return path
+    
+    # If no icon found, try to create one
+    try:
+        from create_icon import create_icon_from_png
+        png_path = os.path.join("app", "resources", "BetterFinder-Icon.png")
+        ico_path = os.path.join("app", "resources", "icon.ico")
+        
+        if os.path.exists(png_path):
+            print("Creating icon from PNG...")
+            if create_icon_from_png(png_path, ico_path):
+                return ico_path
+    except Exception as e:
+        print(f"Error creating icon: {e}")
+    
+    print("Warning: No icon found. Using default PyInstaller icon.")
+    return None
+
+def build_executable(icon_path=None):
+    """Builds the executable using PyInstaller"""
+    try:
+        # Base command
+        cmd = [
+            "pyinstaller",
+            "--name=BetterFinder",
+            "--onefile",
+            "--windowed",
+            "--clean",
+            "--noconfirm",
+            "--add-data=app/resources;app/resources"
+        ]
+        
+        # Add icon if available
+        if icon_path:
+            cmd.append(f"--icon={icon_path}")
+        
+        # Add main script
+        cmd.append("app/main.py")
+        
+        # Convert command to string for printing
+        cmd_str = " ".join(cmd)
+        print("Starting PyInstaller...")
+        print(f"Command: {cmd_str}")
+        
+        # Run the command
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        # Print output
+        print(result.stdout)
+        
+        if result.stderr:
+            print("Errors/Warnings:")
+            print(result.stderr)
+        
+        if result.returncode != 0:
+            print(f"PyInstaller failed with code {result.returncode}")
+            return False
+        
+        return True
+    except Exception as e:
+        print(f"Error building executable: {e}")
+        traceback.print_exc()
+        return False
+
+def copy_executable():
+    """Copies the executable from the dist directory to the current directory"""
+    source = os.path.join("dist", "BetterFinder.exe")
+    destination = "BetterFinder.exe"
+    
+    if os.path.exists(source):
+        try:
+            shutil.copy2(source, destination)
+            return True
+        except Exception as e:
+            print(f"Error copying executable: {e}")
+            return False
     else:
-        print("Warnung: Kein gültiges Icon gefunden oder Icon ist zu klein.")
+        print(f"Error: {source} not found")
+        return False
+
+def main():
+    """Main function to build the executable"""
+    print_header("BetterFinder .exe Builder")
     
-    # Hauptdatei hinzufügen
-    pyinstaller_cmd.append("app/main.py")
+    # Check for running processes
+    process_name = "BetterFinder.exe"
+    if is_process_running(process_name):
+        print(f"Trying to terminate running {process_name} processes...")
+        terminate_process(process_name)
     
-    # Befehl direkt ausführen (ohne .spec-Datei-Manipulation)
-    print("Starte PyInstaller...")
-    print(f"Befehl: {' '.join(pyinstaller_cmd)}")
+    # Clean up previous build files
+    if not clean_build_directories():
+        print("Error cleaning build directories. Continuing anyway...")
     
-    try:
-        process = subprocess.run(pyinstaller_cmd, check=True)
-        if process.returncode != 0:
-            print(f"Fehler: PyInstaller wurde mit Code {process.returncode} beendet.")
-            return 1
-    except subprocess.CalledProcessError as e:
-        print(f"Fehler: {e}")
-        return 1
-    except Exception as e:
-        print(f"Unerwarteter Fehler: {e}")
-        return 1
+    if not clean_spec_file():
+        print("Error cleaning spec file. Continuing anyway...")
     
-    # Überprüfe, ob die .exe erstellt wurde
-    dist_exe_path = os.path.join("dist", "BetterFinder.exe")
-    if not os.path.exists(dist_exe_path):
-        print("Fehler: Die .exe-Datei wurde nicht erstellt.")
-        return 1
+    if not clean_exe_file():
+        print("Error cleaning executable. Continuing anyway...")
     
-    print("\nBuild erfolgreich abgeschlossen!")
-    print(f"Die ausführbare Datei wurde erstellt unter: {os.path.abspath(dist_exe_path)}")
-    print("Du kannst diese Datei jetzt auf jedem Windows-Computer verwenden, auch ohne Python-Installation.")
+    # Find icon
+    icon_path = find_icon()
     
-    # Optionales Kopieren in das Hauptverzeichnis
-    try:
-        shutil.copy2(dist_exe_path, "BetterFinder.exe")
-        print(f"Eine Kopie wurde auch im aktuellen Verzeichnis erstellt: {os.path.abspath('BetterFinder.exe')}")
-    except Exception as e:
-        print(f"Warnung: Konnte die .exe nicht ins Hauptverzeichnis kopieren: {e}")
+    # Build the executable
+    if build_executable(icon_path):
+        # Copy the executable to the current directory
+        if copy_executable():
+            print("\nBuild completed successfully!")
+            print(f"The executable has been created at: {os.path.abspath(os.path.join('dist', 'BetterFinder.exe'))}")
+            print("You can now use this file on any Windows computer, even without Python installation.")
+            print(f"A copy has also been created in the current directory: {os.path.abspath('BetterFinder.exe')}")
+            return 0
     
-    return 0
+    print("\nBuild failed!")
+    return 1
 
 if __name__ == "__main__":
-    sys.exit(build_exe()) 
+    sys.exit(main()) 

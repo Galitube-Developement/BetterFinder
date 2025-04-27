@@ -1,9 +1,9 @@
 """
-Hauptfenster der Anwendung
+Main window of the application
 
-Dieses Modul definiert das Hauptfenster der Anwendung mit:
-1. Spotlight-ähnliche Suchoberfläche
-2. Tray-Icon mit Einstellungen und Neuindizierung
+This module defines the main window of the application with:
+1. Spotlight-like search interface
+2. Tray icon with settings and reindexing
 """
 
 import os
@@ -29,7 +29,7 @@ from app.core.indexer import FileSystemIndexer
 from app.core.search_engine import SearchEngine
 from app.utils.file_utils import get_file_size_str, get_file_date_str, open_file, open_containing_folder
 
-# Konstantendefinitionen für das Styling
+# Constant definitions for styling
 BACKGROUND_COLOR = "#202020"
 TEXT_COLOR = "#FFFFFF"
 HIGHLIGHT_COLOR = "#0078D7"
@@ -37,31 +37,31 @@ SECONDARY_COLOR = "#303030"
 BORDER_COLOR = "#404040"
 ICON_COLOR = "#808080"
 
-# Kommando-Präfixe
+# Command prefixes
 COMMANDS = {
-    "=": "Berechnet mathematische Ausdrücke",
-    "!": "Greift auf vorherige Ergebnisse zu",
-    "?": "Sucht Dateien und Ordner",
-    "@": "Öffnet Einstellungen und Optionen",
-    ".": "Sucht Programme"
+    "=": "Calculates mathematical expressions",
+    "!": "Accesses previous results",
+    "?": "Searches for files and folders",
+    "@": "Opens settings and options",
+    ".": "Searches for programs"
 }
 
 class SearchThread(QThread):
-    """Thread für die Suche, um die UI nicht zu blockieren"""
+    """Thread for searching, to avoid blocking the UI"""
     
-    # Signal, das die Suchergebnisse zurückgibt
+    # Signal that returns the search results
     results_ready = pyqtSignal(list)
-    # Signal für Fehler
+    # Signal for errors
     error_occurred = pyqtSignal(str)
     
     def __init__(self, search_engine: SearchEngine, query: str, file_type: Optional[str] = None):
         """
-        Initialisiert den Suchthread
+        Initializes the search thread
         
         Args:
-            search_engine: Die Suchmaschine
-            query: Die Suchanfrage
-            file_type: Optionaler Dateitypfilter
+            search_engine: The search engine
+            query: The search query
+            file_type: Optional file type filter
         """
         super().__init__()
         self.search_engine = search_engine
@@ -70,92 +70,92 @@ class SearchThread(QThread):
         self.stop_requested = False
     
     def run(self):
-        """Führt die Suche durch"""
+        """Performs the search"""
         try:
-            # Frühzeitige Prüfung auf Abbruch
+            # Early check for cancellation
             if self.stop_requested:
                 return
                 
-            # Prüfen, ob es ein regulärer Ausdruck ist
+            # Check if it's a regular expression
             if self.query.startswith('regex:'):
                 regex_pattern = self.query[6:].strip()
                 results = self.search_engine.search_by_regex(regex_pattern, self.file_type)
-            # Prüfen auf Kommandopräfixe
+            # Check for command prefixes
             elif self.query.startswith('='):
-                # Mathematischer Ausdruck
+                # Mathematical expression
                 try:
                     expression = self.query[1:].strip()
                     result = eval(expression, {"__builtins__": {}}, {})
-                    results = [{"filename": f"{expression} = {result}", "path": "Berechnung", 
+                    results = [{"filename": f"{expression} = {result}", "path": "Calculation", 
                               "size": 0, "last_modified": datetime.now(), "full_path": str(result),
                               "type": "calculation"}]
                 except:
                     results = []
             elif self.query.startswith('@'):
-                # Einstellungen anzeigen
+                # Show settings
                 cmd = self.query[1:].strip().lower()
-                results = [{"filename": "Einstellungen öffnen", "path": "BetterFinder", 
+                results = [{"filename": "Open Settings", "path": "BetterFinder", 
                           "size": 0, "last_modified": datetime.now(), "full_path": "settings",
                           "type": "command"}]
             else:
                 results = self.search_engine.search(self.query, self.file_type)
             
-            # Ergebnisse zurücksenden, falls kein Abbruch angefordert wurde
+            # Send results back if no cancellation was requested
             if not self.stop_requested:
                 self.results_ready.emit(results)
         except Exception as e:
-            # Bei Fehler Signal senden, falls kein Abbruch angefordert wurde
+            # Send error signal if no cancellation was requested
             if not self.stop_requested:
-                error_msg = f"Fehler bei der Suche: {str(e)}"
+                error_msg = f"Search error: {str(e)}"
                 self.error_occurred.emit(error_msg)
-                # Leere Ergebnisliste zurückgeben
+                # Return empty results list
                 self.results_ready.emit([])
-            # Vollständige Fehlerinfo im Terminal ausgeben
-            print(f"Suchfehler: {e}")
+            # Output complete error info in terminal
+            print(f"Search error: {e}")
             traceback.print_exc()
     
     def stop(self):
-        """Fordert den Abbruch des Threads an"""
+        """Requests thread cancellation"""
         self.stop_requested = True
 
 class IndexingThread(QThread):
-    """Thread für die Indizierung des Dateisystems"""
+    """Thread for indexing the file system"""
     
-    # Signal für Fortschritt
+    # Signal for progress
     progress = pyqtSignal(str)
-    # Signal für Fertigstellung
+    # Signal for completion
     finished_indexing = pyqtSignal()
-    # Signal für Fehler
+    # Signal for errors
     error_occurred = pyqtSignal(str)
     
     def __init__(self, indexer: FileSystemIndexer):
         """
-        Initialisiert den Indizierungsthread
+        Initializes the indexing thread
         
         Args:
-            indexer: Der Dateisystem-Indexer
+            indexer: The file system indexer
         """
         super().__init__()
         self.indexer = indexer
     
     def run(self):
-        """Führt die Indizierung durch"""
+        """Performs the indexing"""
         try:
-            self.progress.emit("Indizierung gestartet...")
+            self.progress.emit("Indexing started...")
             self.indexer.start_indexing()
-            self.progress.emit("Indizierung abgeschlossen.")
+            self.progress.emit("Indexing completed.")
             self.finished_indexing.emit()
         except Exception as e:
-            # Bei Fehler Signal senden
-            error_msg = f"Fehler bei der Indizierung: {str(e)}"
+            # Send error signal
+            error_msg = f"Indexing error: {str(e)}"
             self.error_occurred.emit(error_msg)
-            self.progress.emit("Indizierung fehlgeschlagen.")
-            # Vollständige Fehlerinfo im Terminal ausgeben
-            print(f"Indizierungsfehler: {e}")
+            self.progress.emit("Indexing failed.")
+            # Output complete error info in terminal
+            print(f"Indexing error: {e}")
             traceback.print_exc()
 
 class SpotlightStyleSearchBar(QWidget):
-    """Spotlight-ähnliche Suchleiste"""
+    """Spotlight-like search bar"""
     
     search_triggered = pyqtSignal(str)
     
@@ -168,7 +168,7 @@ class SpotlightStyleSearchBar(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         
-        # Suchfeld-Container für Radius-Effekt
+        # Search field container for radius effect
         search_container = QWidget()
         search_container.setObjectName("searchContainer")
         search_container.setStyleSheet(f"""
@@ -180,16 +180,16 @@ class SpotlightStyleSearchBar(QWidget):
             }}
         """)
         
-        # Layout für den Container
+        # Layout for the container
         container_layout = QHBoxLayout(search_container)
         container_layout.setContentsMargins(15, 0, 15, 0)
         
-        # Suchfeld
+        # Search field
         self.search_box = QLineEdit()
-        self.search_box.setPlaceholderText("Suchen...")
+        self.search_box.setPlaceholderText("Search...")
         self.search_box.setMinimumHeight(50)
         
-        # Transparentes Suchfeld innerhalb des Containers
+        # Transparent search field within the container
         self.search_box.setStyleSheet(f"""
             QLineEdit {{
                 background-color: transparent;
@@ -200,17 +200,17 @@ class SpotlightStyleSearchBar(QWidget):
             }}
         """)
         
-        # Hinzufügen zum Container-Layout
+        # Add to container layout
         container_layout.addWidget(self.search_box)
         
-        # Container zum Hauptlayout hinzufügen
+        # Container to main layout
         layout.addWidget(search_container)
         
-        # Signale
+        # Signals
         self.search_box.returnPressed.connect(self.emit_search)
         self.search_box.textChanged.connect(self.on_text_changed)
         
-        # Layout setzen
+        # Layout set
         self.setLayout(layout)
     
     def on_text_changed(self, text):
@@ -227,7 +227,7 @@ class SpotlightStyleSearchBar(QWidget):
         self.search_box.selectAll()
 
 class SpotlightResultsList(QListWidget):
-    """Liste der Suchergebnisse im Spotlight-Stil"""
+    """List of search results in Spotlight style"""
     
     item_selected = pyqtSignal(str)
     
@@ -239,7 +239,7 @@ class SpotlightResultsList(QListWidget):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         
-        # Container für die Ergebnisliste
+        # Container for the results list
         self.setObjectName("resultsList")
         
         self.setStyleSheet(f"""
@@ -283,7 +283,7 @@ class SpotlightResultsList(QListWidget):
             }}
         """)
         
-        # Signale
+        # Signals
         self.itemDoubleClicked.connect(self.on_item_double_clicked)
         
     def on_item_double_clicked(self, item):
@@ -292,7 +292,7 @@ class SpotlightResultsList(QListWidget):
             self.item_selected.emit(data)
 
 class SpotlightWindow(QDialog):
-    """Hauptfenster im Spotlight-Stil"""
+    """Main window in Spotlight style"""
     
     def __init__(self, indexer, search_engine):
         super().__init__(None, Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
@@ -300,21 +300,21 @@ class SpotlightWindow(QDialog):
         self.indexer = indexer
         self.search_engine = search_engine
         
-        # Such-Thread
+        # Search thread
         self.search_thread = None
         
-        # Timer für verzögerte Suche
+        # Timer for delayed search
         self.search_timer = QTimer(self)
         self.search_timer.setSingleShot(True)
         self.search_timer.timeout.connect(self.perform_search)
         
-        # Schatten-Effekte abschalten für echte Transparenz
+        # Disable shadows for true transparency
         self.setAttribute(Qt.WA_TranslucentBackground)
         
         self.init_ui()
         
     def init_ui(self):
-        # Position und Größe
+        # Position and size
         screen_geometry = QDesktopWidget().availableGeometry()
         width = min(600, screen_geometry.width() - 100)
         height = 500
@@ -324,11 +324,11 @@ class SpotlightWindow(QDialog):
         
         self.setGeometry(x, y, width, height)
         
-        # Der Inhalt des Fensters
+        # Content of the window
         self.content_widget = QWidget(self)
         self.content_widget.setObjectName("contentWidget")
         
-        # Extrem runde Ecken für den Inhalt
+        # Extremely rounded corners for the content
         self.content_widget.setStyleSheet(f"""
             #contentWidget {{
                 background-color: {BACKGROUND_COLOR};
@@ -337,61 +337,61 @@ class SpotlightWindow(QDialog):
             }}
         """)
         
-        # Layout für das gesamte Fenster (transparenter Hintergrund)
+        # Layout for the entire window (transparent background)
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(20, 20, 20, 20)  # Platz für Schatten
+        main_layout.setContentsMargins(20, 20, 20, 20)  # Space for shadow
         main_layout.addWidget(self.content_widget)
         
-        # Layout für den Inhalt
+        # Layout for the content
         content_layout = QVBoxLayout(self.content_widget)
         content_layout.setContentsMargins(20, 20, 20, 20)
         content_layout.setSpacing(10)
         
-        # Schatten-Effekt für den Inhalt
+        # Shadow effect for the content
         shadow = QGraphicsDropShadowEffect()
         shadow.setBlurRadius(30)
         shadow.setColor(QColor(0, 0, 0, 150))
         shadow.setOffset(0, 5)
         self.content_widget.setGraphicsEffect(shadow)
         
-        # Suchleiste
+        # Search bar
         self.search_bar = SpotlightStyleSearchBar()
         self.search_bar.search_triggered.connect(self.on_search_triggered)
         content_layout.addWidget(self.search_bar)
         
-        # Ergebnisliste
+        # Results list
         self.results_list = SpotlightResultsList()
         self.results_list.item_selected.connect(self.on_item_selected)
         content_layout.addWidget(self.results_list)
         
-        # Fokus auf Suchfeld
+        # Focus on search field
         self.search_bar.set_focus()
     
     def keyPressEvent(self, event):
-        # Escape schließt das Fenster
+        # Escape closes the window
         if event.key() == Qt.Key_Escape:
             self.hide()
         else:
             super().keyPressEvent(event)
             
     def mousePressEvent(self, event):
-        # Fenster kann verschoben werden
+        # Window can be moved
         if event.button() == Qt.LeftButton:
             self.drag_position = event.globalPos() - self.frameGeometry().topLeft()
             event.accept()
             
     def mouseMoveEvent(self, event):
-        # Fenster verschieben
+        # Move window
         if event.buttons() == Qt.LeftButton:
             self.move(event.globalPos() - self.drag_position)
             event.accept()
     
     def on_search_triggered(self, text):
-        # Verzögerte Suche starten
+        # Start delayed search
         self.search_timer.start(300)
         
     def stop_current_search(self):
-        """Stoppt den aktuellen Suchthread, falls vorhanden"""
+        """Stops the current search thread if it exists"""
         if self.search_thread and self.search_thread.isRunning():
             if hasattr(self.search_thread, 'stop'):
                 self.search_thread.stop()
@@ -402,93 +402,93 @@ class SpotlightWindow(QDialog):
             self.search_thread = None
     
     def perform_search(self):
-        """Führt die eigentliche Suche durch"""
+        """Performs the actual search"""
         query = self.search_bar.get_text()
         
-        # Prüfen, ob Suchtext leer ist
+        # Check if search text is empty
         if not query:
             self.results_list.clear()
             return
         
-        # Laufenden Thread stoppen
+        # Stop current thread
         self.stop_current_search()
         
-        # Neuen Suchthread starten
+        # Start new search thread
         self.search_thread = SearchThread(self.search_engine, query, None)
         self.search_thread.results_ready.connect(self.display_results)
         self.search_thread.error_occurred.connect(self.show_error)
         self.search_thread.start()
     
     def display_results(self, results):
-        """Zeigt die Suchergebnisse an"""
+        """Shows the search results"""
         self.results_list.clear()
         
         for result in results:
             item = QListWidgetItem()
             
-            # Item-Text und Icon je nach Typ
+            # Item text and icon based on type
             if 'type' in result and result['type'] == 'calculation':
                 item.setText(result['filename'])
-                # Mathe-Symbol für Berechnungen
-                # (hier müsste ein echtes Icon gesetzt werden)
+                # Math symbol for calculations
+                # (here a real icon should be set)
             elif 'type' in result and result['type'] == 'command':
                 item.setText(result['filename'])
-                # Einstellungs-Symbol für Kommandos
-                # (hier müsste ein echtes Icon gesetzt werden)
+                # Settings symbol for commands
+                # (here a real icon should be set)
             else:
-                # Normale Datei
+                # Normal file
                 item.setText(f"{result['filename']} - {result['path']}")
-                # Dateityp-abhängiges Icon
-                # (hier müsste ein echtes Icon gesetzt werden)
+                # File type-dependent icon
+                # (here a real icon should be set)
             
-            # Daten für Doppelklick speichern
+            # Data for double click storage
             item.setData(Qt.UserRole, result['full_path'])
             
             self.results_list.addItem(item)
     
     def on_item_selected(self, path):
-        """Behandelt die Auswahl eines Ergebnisses"""
+        """Handles selection of a result"""
         if path == 'settings':
-            # Einstellungen öffnen
+            # Open settings
             self.hide()
             return
             
         try:
-            # Datei öffnen
+            # Open file
             open_file(path)
             self.hide()
         except Exception as e:
-            self.show_error(f"Fehler beim Öffnen der Datei: {str(e)}")
+            self.show_error(f"Error opening file: {str(e)}")
     
     def show_error(self, error_message):
-        """Zeigt eine Fehlermeldung an"""
-        print(f"Fehler: {error_message}")
-        # Hier könnte ein Fehler-Icon in der Ergebnisliste angezeigt werden
+        """Shows an error message"""
+        print(f"Error: {error_message}")
+        # Here a error icon could be displayed in the results list
 
 class SettingsDialog(QDialog):
-    """Einstellungsdialog für BetterFinder"""
+    """Settings dialog for BetterFinder"""
     
     def __init__(self, parent=None):
         super().__init__(parent)
         self.settings = QSettings("BetterFinder", "BetterFinder")
-        self.setWindowTitle("BetterFinder Einstellungen")
+        self.setWindowTitle("BetterFinder Settings")
         self.resize(500, 400)
         
-        # Transparenter Hintergrund für Rundungen
+        # Transparent background for rounding
         self.setAttribute(Qt.WA_TranslucentBackground)
         
-        # Erstelle UI
+        # Create UI
         self.init_ui()
         
-        # Lade bestehende Einstellungen
+        # Load existing settings
         self.load_settings()
     
     def init_ui(self):
-        # Hauptlayout
+        # Main layout
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(20, 20, 20, 20)
         
-        # Container für den Inhalt
+        # Container for content
         self.content_widget = QWidget(self)
         self.content_widget.setObjectName("settingsContent")
         self.content_widget.setStyleSheet(f"""
@@ -499,31 +499,31 @@ class SettingsDialog(QDialog):
             }}
         """)
         
-        # Inhaltslayout
+        # Content layout
         content_layout = QVBoxLayout(self.content_widget)
         content_layout.setContentsMargins(25, 25, 25, 25)
         content_layout.setSpacing(15)
         
-        # Titel
-        title_label = QLabel("BetterFinder Einstellungen")
+        # Title
+        title_label = QLabel("BetterFinder Settings")
         title_label.setStyleSheet(f"color: {TEXT_COLOR}; font-size: 18px; font-weight: bold;")
         content_layout.addWidget(title_label)
         
-        # Trennlinie
+        # Separator
         separator = QFrame()
         separator.setFrameShape(QFrame.HLine)
         separator.setFrameShadow(QFrame.Sunken)
         separator.setStyleSheet(f"background-color: {BORDER_COLOR};")
         content_layout.addWidget(separator)
         
-        # Scroll-Bereich für alle Einstellungen
+        # Scroll area for all settings
         scroll_area = QWidget()
         scroll_layout = QVBoxLayout(scroll_area)
         scroll_layout.setContentsMargins(0, 0, 0, 0)
         scroll_layout.setSpacing(15)
         
-        # 1. Hotkey-Einstellung
-        hotkey_group = QGroupBox("Tastenkombination")
+        # 1. Hotkey setting
+        hotkey_group = QGroupBox("Hotkey")
         hotkey_group.setStyleSheet(f"""
             QGroupBox {{
                 color: {TEXT_COLOR};
@@ -541,7 +541,7 @@ class SettingsDialog(QDialog):
         """)
         
         hotkey_layout = QVBoxLayout(hotkey_group)
-        hotkey_description = QLabel("Tastenkombination zum Öffnen von BetterFinder:")
+        hotkey_description = QLabel("Hotkey to open BetterFinder:")
         hotkey_description.setStyleSheet(f"color: {TEXT_COLOR};")
         
         self.hotkey_edit = QLineEdit()
@@ -557,7 +557,7 @@ class SettingsDialog(QDialog):
             }}
         """)
         
-        self.hotkey_button = QPushButton("Ändern")
+        self.hotkey_button = QPushButton("Change")
         self.hotkey_button.setStyleSheet(f"""
             QPushButton {{
                 background-color: {HIGHLIGHT_COLOR};
@@ -577,8 +577,8 @@ class SettingsDialog(QDialog):
         hotkey_layout.addWidget(self.hotkey_edit)
         hotkey_layout.addWidget(self.hotkey_button)
         
-        # 2. Autostart-Option
-        autostart_group = QGroupBox("Systemstart")
+        # 2. Autostart option
+        autostart_group = QGroupBox("System start")
         autostart_group.setStyleSheet(f"""
             QGroupBox {{
                 color: {TEXT_COLOR};
@@ -596,7 +596,7 @@ class SettingsDialog(QDialog):
         """)
         
         autostart_layout = QVBoxLayout(autostart_group)
-        self.autostart_checkbox = QCheckBox("BetterFinder beim Systemstart automatisch starten")
+        self.autostart_checkbox = QCheckBox("Start BetterFinder automatically at system start")
         self.autostart_checkbox.setStyleSheet(f"""
             QCheckBox {{
                 color: {TEXT_COLOR};
@@ -616,8 +616,8 @@ class SettingsDialog(QDialog):
         
         autostart_layout.addWidget(self.autostart_checkbox)
         
-        # 3. Ausgeschlossene Verzeichnisse
-        exclude_group = QGroupBox("Ausgeschlossene Verzeichnisse")
+        # 3. Excluded directories
+        exclude_group = QGroupBox("Excluded directories")
         exclude_group.setStyleSheet(f"""
             QGroupBox {{
                 color: {TEXT_COLOR};
@@ -635,7 +635,7 @@ class SettingsDialog(QDialog):
         """)
         
         exclude_layout = QVBoxLayout(exclude_group)
-        exclude_description = QLabel("Diese Verzeichnisse werden nicht indiziert:")
+        exclude_description = QLabel("These directories will not be indexed:")
         exclude_description.setStyleSheet(f"color: {TEXT_COLOR};")
         
         self.exclude_list = QListWidget()
@@ -658,7 +658,7 @@ class SettingsDialog(QDialog):
         self.exclude_list.setMaximumHeight(100)
         
         exclude_buttons_layout = QHBoxLayout()
-        self.add_exclude_button = QPushButton("Hinzufügen")
+        self.add_exclude_button = QPushButton("Add")
         self.add_exclude_button.setStyleSheet(f"""
             QPushButton {{
                 background-color: {HIGHLIGHT_COLOR};
@@ -674,7 +674,7 @@ class SettingsDialog(QDialog):
         """)
         self.add_exclude_button.clicked.connect(self.add_exclude_path)
         
-        self.remove_exclude_button = QPushButton("Entfernen")
+        self.remove_exclude_button = QPushButton("Remove")
         self.remove_exclude_button.setStyleSheet(f"""
             QPushButton {{
                 background-color: #d32f2f;
@@ -697,8 +697,8 @@ class SettingsDialog(QDialog):
         exclude_layout.addWidget(self.exclude_list)
         exclude_layout.addLayout(exclude_buttons_layout)
         
-        # 4. Maximale Anzahl der Ergebnisse
-        results_group = QGroupBox("Ergebnisse")
+        # 4. Maximum number of results
+        results_group = QGroupBox("Results")
         results_group.setStyleSheet(f"""
             QGroupBox {{
                 color: {TEXT_COLOR};
@@ -716,7 +716,7 @@ class SettingsDialog(QDialog):
         """)
         
         results_layout = QVBoxLayout(results_group)
-        results_description = QLabel("Maximale Anzahl der angezeigten Suchergebnisse:")
+        results_description = QLabel("Maximum number of displayed search results:")
         results_description.setStyleSheet(f"color: {TEXT_COLOR};")
         
         self.results_spinbox = QSpinBox()
@@ -741,21 +741,21 @@ class SettingsDialog(QDialog):
         results_layout.addWidget(results_description)
         results_layout.addWidget(self.results_spinbox)
         
-        # Füge alle Gruppen zum Scroll-Layout hinzu
+        # Add all groups to scroll layout
         scroll_layout.addWidget(hotkey_group)
         scroll_layout.addWidget(autostart_group)
         scroll_layout.addWidget(exclude_group)
         scroll_layout.addWidget(results_group)
         scroll_layout.addStretch(1)
         
-        # Füge das Scroll-Widget zum Content-Layout hinzu
+        # Add scroll widget to content layout
         content_layout.addWidget(scroll_area)
         
-        # Buttons unten
+        # Bottom buttons
         button_layout = QHBoxLayout()
         button_layout.addStretch(1)
         
-        self.cancel_button = QPushButton("Abbrechen")
+        self.cancel_button = QPushButton("Cancel")
         self.cancel_button.setStyleSheet(f"""
             QPushButton {{
                 background-color: {SECONDARY_COLOR};
@@ -771,7 +771,7 @@ class SettingsDialog(QDialog):
         """)
         self.cancel_button.clicked.connect(self.reject)
         
-        self.save_button = QPushButton("Speichern")
+        self.save_button = QPushButton("Save")
         self.save_button.setStyleSheet(f"""
             QPushButton {{
                 background-color: {HIGHLIGHT_COLOR};
@@ -792,18 +792,18 @@ class SettingsDialog(QDialog):
         
         content_layout.addLayout(button_layout)
         
-        # Schatten-Effekt
+        # Shadow effect
         shadow = QGraphicsDropShadowEffect()
         shadow.setBlurRadius(30)
         shadow.setColor(QColor(0, 0, 0, 150))
         shadow.setOffset(0, 5)
         self.content_widget.setGraphicsEffect(shadow)
         
-        # Füge den Content zum Hauptlayout hinzu
+        # Add content to main layout
         main_layout.addWidget(self.content_widget)
     
     def load_settings(self):
-        """Lade bestehende Einstellungen"""
+        """Load existing settings"""
         # Hotkey
         hotkey = self.settings.value("hotkey", "Strg+Leertaste")
         self.hotkey_edit.setText(hotkey)
@@ -812,17 +812,17 @@ class SettingsDialog(QDialog):
         autostart = self.settings.value("autostart", False, type=bool)
         self.autostart_checkbox.setChecked(autostart)
         
-        # Ausgeschlossene Verzeichnisse
+        # Excluded directories
         excluded_paths = self.settings.value("excluded_paths", [], type=list)
         for path in excluded_paths:
             self.exclude_list.addItem(path)
         
-        # Maximale Anzahl der Ergebnisse
+        # Maximum number of results
         max_results = self.settings.value("max_results", 30, type=int)
         self.results_spinbox.setValue(max_results)
     
     def save_settings(self):
-        """Speichere die Einstellungen"""
+        """Saves the settings"""
         try:
             # Hotkey
             self.settings.setValue("hotkey", self.hotkey_edit.text())
@@ -835,87 +835,87 @@ class SettingsDialog(QDialog):
                 else:
                     self.setup_autostart(False)
             except Exception as e:
-                print(f"Fehler beim Konfigurieren des Autostarts: {e}")
-                # Zeige eine Warnung, breche aber nicht ab
-                QMessageBox.warning(self, "Autostart-Warnung",
-                                  f"Die Autostart-Einstellung konnte nicht angewendet werden: {e}\n\nAlle anderen Einstellungen wurden gespeichert.")
+                print(f"Error configuring autostart: {e}")
+                # Show warning, but don't abort
+                QMessageBox.warning(self, "Autostart warning",
+                                  f"Autostart setting could not be applied: {e}\n\nAll other settings were saved.")
             
-            # Ausgeschlossene Verzeichnisse
+            # Excluded directories
             excluded_paths = []
             for i in range(self.exclude_list.count()):
                 excluded_paths.append(self.exclude_list.item(i).text())
             self.settings.setValue("excluded_paths", excluded_paths)
             
-            # Maximale Anzahl der Ergebnisse
+            # Maximum number of results
             self.settings.setValue("max_results", self.results_spinbox.value())
             
-            # Einstellungen speichern
+            # Save settings
             self.settings.sync()
             
-            # Dialog schließen
+            # Close dialog
             self.accept()
         except Exception as e:
-            # Zeige Fehlermeldung und breche nicht ab
-            print(f"Fehler beim Speichern der Einstellungen: {e}")
+            # Show error message and don't abort
+            print(f"Error saving settings: {e}")
             traceback.print_exc()
-            QMessageBox.critical(self, "Fehler", 
-                              f"Die Einstellungen konnten nicht gespeichert werden: {str(e)}")
-            # Dialog bleibt offen, damit der Benutzer erneut versuchen kann
+            QMessageBox.critical(self, "Error", 
+                              f"Settings could not be saved: {str(e)}")
+            # Dialog remains open so user can try again
     
     def change_hotkey(self):
-        """Ändere die Tastenkombination"""
-        # In einer richtigen Implementierung würde hier ein Dialog angezeigt werden,
-        # der einen Tastendruck abfängt und als neue Tastenkombination speichert
-        self.hotkey_edit.setText("Strg+Leertaste")  # Platzhalter, würde in Realität durch den erfassten Hotkey ersetzt
+        """Changes the hotkey"""
+        # In a real implementation, here a dialog would be displayed,
+        # which captures a key press and stores it as the new hotkey
+        self.hotkey_edit.setText("Strg+Leertaste")  # Placeholder, would be replaced in reality by the captured hotkey
     
     def add_exclude_path(self):
-        """Füge einen auszuschließenden Pfad hinzu"""
-        directory = QFileDialog.getExistingDirectory(self, "Verzeichnis auswählen")
+        """Adds an excluded path"""
+        directory = QFileDialog.getExistingDirectory(self, "Select directory")
         if directory:
-            # Prüfe, ob der Pfad bereits in der Liste ist
+            # Check if the path is already in the list
             for i in range(self.exclude_list.count()):
                 if self.exclude_list.item(i).text() == directory:
                     return
             
-            # Füge den Pfad zur Liste hinzu
+            # Add the path to the list
             self.exclude_list.addItem(directory)
     
     def remove_exclude_path(self):
-        """Entferne einen ausgewählten Pfad"""
+        """Removes a selected path"""
         selected_items = self.exclude_list.selectedItems()
         for item in selected_items:
             self.exclude_list.takeItem(self.exclude_list.row(item))
     
     def setup_autostart(self, enable):
-        """Konfiguriere den Autostart"""
+        """Configures autostart"""
         import os
         import sys
         import ctypes
         
         try:
-            # Pfad zur aktuellen ausführbaren Datei
+            # Path to the executable
             if getattr(sys, 'frozen', False):
-                # Wenn die Anwendung mit PyInstaller erstellt wurde
+                # If the application was created with PyInstaller
                 app_path = sys.executable
             else:
-                # Wenn die Anwendung über Python ausgeführt wird
+                # If the application is run with Python
                 app_path = os.path.abspath(sys.argv[0])
             
-            # Autostart-Verzeichnis
+            # Autostart directory
             startup_dir = os.path.join(os.getenv('APPDATA'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup')
             shortcut_path = os.path.join(startup_dir, 'BetterFinder.lnk')
             bat_path = os.path.join(startup_dir, 'BetterFinder.bat')
             
-            # Prüfen, ob das Verzeichnis existiert und schreibbar ist
+            # Check if the directory exists and is writable
             if not os.path.exists(startup_dir):
                 os.makedirs(startup_dir, exist_ok=True)
-                print(f"Autostart-Verzeichnis wurde erstellt: {startup_dir}")
+                print(f"Autostart directory created: {startup_dir}")
             
-            # Prüfen, ob das Verzeichnis schreibbar ist
+            # Check if the directory is writable
             if not os.access(startup_dir, os.W_OK):
-                raise Exception(f"Keine Schreibrechte für das Autostart-Verzeichnis: {startup_dir}")
+                raise Exception(f"No write permissions for the autostart directory: {startup_dir}")
             
-            # Prüfen, ob wir Administratorrechte haben (für UAC-geschützte Ordner)
+            # Check if we have administrator rights (for UAC-protected folders)
             def is_admin():
                 try:
                     return ctypes.windll.shell32.IsUserAnAdmin()
@@ -923,179 +923,179 @@ class SettingsDialog(QDialog):
                     return False
             
             if enable:
-                # Erstelle eine .bat-Datei im Autostart-Verzeichnis
+                # Create a .bat file in the autostart directory
                 try:
-                    # Prüfe, ob eine eventuell vorhandene Datei gelöscht werden kann
+                    # Check if an existing file can be deleted
                     if os.path.exists(bat_path) and not os.access(bat_path, os.W_OK):
-                        raise PermissionError(f"Keine Schreibrechte für die vorhandene Datei: {bat_path}")
+                        raise PermissionError(f"No write permissions for the existing file: {bat_path}")
                         
-                    # Versuche die Datei zu schreiben
+                    # Try to write the file
                     try:
                         with open(bat_path, 'w') as f:
                             f.write(f'start "" "{app_path}"')
-                        print(f"Autostart-Datei erfolgreich erstellt: {bat_path}")
+                        print(f"Autostart file created successfully: {bat_path}")
                     except PermissionError:
                         if not is_admin():
-                            raise Exception("Keine ausreichenden Berechtigungen. Versuchen Sie, das Programm als Administrator auszuführen.")
+                            raise Exception("Not enough permissions. Try running the program as Administrator.")
                         else:
-                            raise Exception(f"Keine Schreibrechte für: {bat_path}")
+                            raise Exception(f"No write permissions for: {bat_path}")
                     except IOError as e:
-                        raise Exception(f"IO-Fehler beim Schreiben der Datei: {e}")
+                        raise Exception(f"IO error when writing file: {e}")
                 except Exception as e:
-                    raise Exception(f"Fehler beim Erstellen der Autostart-Datei: {e}")
+                    raise Exception(f"Error creating autostart file: {e}")
             else:
-                # Entferne die Datei aus dem Autostart-Verzeichnis
+                # Remove the file from the autostart directory
                 try:
                     if os.path.exists(shortcut_path):
                         try:
                             os.remove(shortcut_path)
-                            print(f"Shortcut erfolgreich entfernt: {shortcut_path}")
+                            print(f"Shortcut removed successfully: {shortcut_path}")
                         except PermissionError:
                             if not is_admin():
-                                raise Exception("Keine ausreichenden Berechtigungen zum Entfernen der Datei. Versuchen Sie, das Programm als Administrator auszuführen.")
+                                raise Exception("Not enough permissions to remove the file. Try running the program as Administrator.")
                             else:
-                                raise Exception(f"Keine Löschrechte für: {shortcut_path}")
+                                raise Exception(f"No delete permissions for: {shortcut_path}")
                     
                     if os.path.exists(bat_path):
                         try:
                             os.remove(bat_path)
-                            print(f"Batch-Datei erfolgreich entfernt: {bat_path}")
+                            print(f"Batch file removed successfully: {bat_path}")
                         except PermissionError:
                             if not is_admin():
-                                raise Exception("Keine ausreichenden Berechtigungen zum Entfernen der Datei. Versuchen Sie, das Programm als Administrator auszuführen.")
+                                raise Exception("Not enough permissions to remove the file. Try running the program as Administrator.")
                             else:
-                                raise Exception(f"Keine Löschrechte für: {bat_path}")
+                                raise Exception(f"No delete permissions for: {bat_path}")
                 except Exception as e:
-                    raise Exception(f"Fehler beim Entfernen der Autostart-Datei: {e}")
+                    raise Exception(f"Error removing autostart file: {e}")
         except Exception as e:
-            # Alle Fehler auf eine höhere Ebene weitergeben
-            print(f"Autostart-Konfiguration fehlgeschlagen: {e}")
+            # Pass all errors to a higher level
+            print(f"Autostart configuration failed: {e}")
             raise
 
 class MainWindow(QMainWindow):
-    """Hauptfenster der Anwendung"""
+    """Main window of the application"""
     
     def __init__(self):
-        """Initialisiert das Hauptfenster"""
+        """Initializes the main window"""
         super().__init__()
         
-        # Fenstertitel und Größe - wir erstellen ein echtes Fenster
+        # Window title and size - we create a real window
         self.setWindowTitle("BetterFinder")
-        self.resize(300, 200)  # Sichtbares, kleines Fenster
+        self.resize(300, 200)  # Visible, small window
         
-        # Einstellungen laden
+        # Load settings
         self.settings = QSettings("BetterFinder", "BetterFinder")
         self.restore_settings()
         
-        # Komponenten initialisieren
+        # Initialize components
         self.init_core_components()
         
-        # Zentrales Widget mit Info-Text
+        # Central widget with info text
         central_widget = QWidget()
         layout = QVBoxLayout(central_widget)
         
-        info_label = QLabel("BetterFinder läuft im Hintergrund.\nDrücken Sie Strg+Leertaste, um die Suche zu öffnen.")
+        info_label = QLabel("BetterFinder running in the background.\nPress Ctrl+Space to open the search.")
         info_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(info_label)
         
         self.setCentralWidget(central_widget)
         
-        # Systemtray-Icon
+        # System tray icon
         self.setup_tray_icon()
         
-        # Spotlight-Fenster
+        # Spotlight window
         self.spotlight = SpotlightWindow(self.indexer, self.search_engine)
         
-        # Hotkey zum Öffnen (Strg+Space)
+        # Hotkey to open (Ctrl+Space)
         self.setup_global_hotkey()
         
-        # Indexierung starten
+        # Start indexing
         self.start_indexing()
         
-        # Spotlight-Fenster sofort anzeigen
+        # Show spotlight window immediately
         QTimer.singleShot(500, self.show_spotlight)
         
-        # Zeige das Fenster zunächst an, damit das Tray-Icon richtig registriert wird
+        # Show the window first so the tray icon registers correctly
         self.show()
-        # Warte kurz und minimiere dann
+        # Wait briefly and minimize then
         QTimer.singleShot(2000, self.hide_to_tray)
     
     def hide_to_tray(self):
-        """Versteckt das Fenster in den Tray"""
+        """Hides the window in the tray"""
         self.hide()
         if self.tray_icon.isVisible():
-            self.tray_icon.showMessage("BetterFinder", "BetterFinder läuft im Hintergrund.\nStrg+Leertaste drücken, um zu suchen", QSystemTrayIcon.Information, 5000)
+            self.tray_icon.showMessage("BetterFinder", "BetterFinder running in the background.\nPress Ctrl+Space to search", QSystemTrayIcon.Information, 5000)
     
     def init_core_components(self):
-        """Initialisiert die Kernkomponenten (Indexer, Suchmaschine)"""
+        """Initializes the core components (indexer, search engine)"""
         try:
-            # Pfad zur Indexdatenbank
+            # Path to index database
             db_path = os.path.join(os.path.expanduser("~"), "BetterFinder", "index.db")
             
-            # Verzeichnis erstellen, falls es nicht existiert
+            # Create directory if it doesn't exist
             os.makedirs(os.path.dirname(db_path), exist_ok=True)
             
-            # Kernkomponenten
+            # Core components
             self.indexer = FileSystemIndexer(db_path)
             self.search_engine = SearchEngine(db_path)
             
-            # Thread-Variablen
+            # Thread variables
             self.indexing_thread = None
         except Exception as e:
-            # Fehlerbehandlung, falls Komponenten nicht initialisiert werden können
-            print(f"Fehler bei der Initialisierung der Komponenten: {e}")
+            # Error handling if components cannot be initialized
+            print(f"Error initializing components: {e}")
             traceback.print_exc()
-            QMessageBox.critical(self, "Kritischer Fehler", 
-                                f"BetterFinder konnte nicht initialisiert werden: {str(e)}")
+            QMessageBox.critical(self, "Critical error", 
+                                f"BetterFinder could not be initialized: {str(e)}")
             sys.exit(1)
     
     def setup_tray_icon(self):
-        """Richtet das Systemtray-Icon ein"""
+        """Sets up the system tray icon"""
         try:
             self.tray_icon = QSystemTrayIcon(self)
             
-            # Versuche das BetterFinder-Icon zu laden
+            # Try to load the BetterFinder icon
             icon_paths = [
-                "BetterFinder-Icon.png",                               # Im Hauptverzeichnis
-                os.path.join(os.getcwd(), "BetterFinder-Icon.png"),    # Absoluter Pfad
-                os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "BetterFinder-Icon.png") # Relativer Pfad von der Klasse
+                "BetterFinder-Icon.png",                               # In main directory
+                os.path.join(os.getcwd(), "BetterFinder-Icon.png"),    # Absolute path
+                os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "BetterFinder-Icon.png") # Relative path from class
             ]
             
             icon_set = False
             for path in icon_paths:
                 if os.path.exists(path):
                     try:
-                        print(f"Versuche Icon zu laden: {path}")
+                        print(f"Trying to load icon: {path}")
                         self.tray_icon.setIcon(QIcon(path))
                         icon_set = True
-                        print(f"BetterFinder-Icon erfolgreich geladen von: {path}")
+                        print(f"BetterFinder icon loaded successfully from: {path}")
                         break
                     except Exception as e:
-                        print(f"Fehler beim Laden des Icons von {path}: {e}")
+                        print(f"Error loading icon from {path}: {e}")
             
             if not icon_set:
-                # Fallback: Systemicon verwenden
-                print("Konnte BetterFinder-Icon nicht laden, verwende System-Icon als Fallback")
+                # Fallback: Use system icon
+                print("Could not load BetterFinder icon, use system icon as fallback")
                 system_icon = QApplication.style().standardIcon(QApplication.style().SP_DialogHelpButton)
                 self.tray_icon.setIcon(system_icon)
             
-            # Tray-Menü
+            # Tray menu
             tray_menu = QMenu()
             
-            # Aktionen
-            open_action = QAction("BetterFinder öffnen", self)
+            # Actions
+            open_action = QAction("Open BetterFinder", self)
             open_action.triggered.connect(self.show_spotlight)
             
-            reindex_action = QAction("Neu indizieren", self)
+            reindex_action = QAction("Reindex", self)
             reindex_action.triggered.connect(self.start_indexing)
             
-            settings_action = QAction("Einstellungen", self)
+            settings_action = QAction("Settings", self)
             settings_action.triggered.connect(self.show_settings)
             
-            exit_action = QAction("Beenden", self)
+            exit_action = QAction("Exit", self)
             exit_action.triggered.connect(self.close_application)
             
-            # Aktionen zum Menü hinzufügen
+            # Add actions to menu
             tray_menu.addAction(open_action)
             tray_menu.addSeparator()
             tray_menu.addAction(reindex_action)
@@ -1103,50 +1103,50 @@ class MainWindow(QMainWindow):
             tray_menu.addSeparator()
             tray_menu.addAction(exit_action)
             
-            # Menü setzen und Icon anzeigen
+            # Set menu and show icon
             self.tray_icon.setContextMenu(tray_menu)
             self.tray_icon.show()
             
-            # Icon-Klick verbinden
+            # Icon click connection
             self.tray_icon.activated.connect(self.on_tray_icon_activated)
             
-            print(f"Tray-Icon sichtbar: {self.tray_icon.isVisible()}")
+            print(f"Tray icon visible: {self.tray_icon.isVisible()}")
             if not self.tray_icon.isVisible():
-                print("WARNUNG: Tray-Icon ist nicht sichtbar!")
+                print("WARNING: Tray icon is not visible!")
             
         except Exception as e:
-            # Falls Systemtray nicht unterstützt wird
-            print(f"Systemtray wird nicht unterstützt: {e}")
+            # If system tray is not supported
+            print(f"System tray is not supported: {e}")
             traceback.print_exc()
     
     def setup_global_hotkey(self):
-        """Richtet globalen Hotkey ein"""
+        """Sets up the global hotkey"""
         self.shortcut = QShortcut(QKeySequence("Ctrl+Space"), self)
         self.shortcut.activated.connect(self.show_spotlight)
     
     def on_tray_icon_activated(self, reason):
         """
-        Behandelt Klicks auf das Tray-Icon
+        Handles clicks on the tray icon
         
         Args:
-            reason: Grund für die Aktivierung
+            reason: Reason for activation
         """
         if reason == QSystemTrayIcon.DoubleClick or reason == QSystemTrayIcon.Trigger:
             self.show_spotlight()
     
     def show_spotlight(self):
-        """Zeigt das Spotlight-Fenster an"""
+        """Shows the spotlight window"""
         if not self.spotlight.isVisible():
             self.spotlight.show()
             self.spotlight.search_bar.set_focus()
     
     def start_indexing(self):
-        """Startet die Indizierung des Dateisystems"""
+        """Starts indexing the file system"""
         if self.indexing_thread and self.indexing_thread.isRunning():
-            self.tray_icon.showMessage("BetterFinder", "Indizierung läuft bereits...", QSystemTrayIcon.Information, 3000)
+            self.tray_icon.showMessage("BetterFinder", "Indexing already running...", QSystemTrayIcon.Information, 3000)
             return
         
-        self.tray_icon.showMessage("BetterFinder", "Indizierung gestartet...", QSystemTrayIcon.Information, 3000)
+        self.tray_icon.showMessage("BetterFinder", "Indexing started...", QSystemTrayIcon.Information, 3000)
         
         self.indexing_thread = IndexingThread(self.indexer)
         self.indexing_thread.progress.connect(self.update_status)
@@ -1155,103 +1155,103 @@ class MainWindow(QMainWindow):
         self.indexing_thread.start()
     
     def on_indexing_finished(self):
-        """Wird aufgerufen, wenn die Indizierung abgeschlossen ist"""
-        self.update_status("Indizierung abgeschlossen.")
-        self.tray_icon.showMessage("BetterFinder", "Indizierung abgeschlossen", QSystemTrayIcon.Information, 3000)
+        """Called when indexing is completed"""
+        self.update_status("Indexing completed.")
+        self.tray_icon.showMessage("BetterFinder", "Indexing completed", QSystemTrayIcon.Information, 3000)
     
     def update_status(self, message: str):
         """
-        Aktualisiert den Status
+        Updates the status
         
         Args:
-            message: Anzuzeigende Nachricht
+            message: Message to display
         """
         print(f"Status: {message}")
-        # Könnte auch in einem Label im Spotlight-Fenster angezeigt werden
+        # Could also be displayed in a label in the spotlight window
     
     def show_error(self, error_message: str):
         """
-        Zeigt eine Fehlermeldung an
+        Shows an error message
         
         Args:
-            error_message: Anzuzeigende Fehlermeldung
+            error_message: Message to display
         """
-        self.tray_icon.showMessage("BetterFinder Fehler", error_message, QSystemTrayIcon.Critical, 5000)
+        self.tray_icon.showMessage("BetterFinder Error", error_message, QSystemTrayIcon.Critical, 5000)
     
     def show_settings(self):
-        """Zeigt die Einstellungen an"""
+        """Shows the settings"""
         dialog = SettingsDialog(self)
         if dialog.exec_() == QDialog.Accepted:
-            # Einstellungen wurden gespeichert
-            # Aktualisiere die Anwendung mit den neuen Einstellungen
+            # Settings were saved
+            # Update application with new settings
             self.apply_settings()
     
     def apply_settings(self):
-        """Wende die gespeicherten Einstellungen an"""
+        """Applies the saved settings"""
         settings = QSettings("BetterFinder", "BetterFinder")
         
         # Hotkey
         hotkey = settings.value("hotkey", "Strg+Leertaste")
-        # In einer richtigen Implementierung würde hier der Hotkey aktualisiert
+        # In a real implementation, here the hotkey would be updated
         
-        # Maximale Anzahl der Ergebnisse
+        # Maximum number of results
         max_results = settings.value("max_results", 30, type=int)
-        # Setze die maximale Anzahl der Ergebnisse für die Suche
+        # Set the maximum number of results for the search
         
-        # Ausgeschlossene Verzeichnisse
+        # Excluded directories
         excluded_paths = settings.value("excluded_paths", [], type=list)
-        # Aktualisiere die Liste der ausgeschlossenen Verzeichnisse im Indexer
+        # Update the list of excluded directories in the indexer
         
-        # Benachrichtigung anzeigen
+        # Show notification
         self.tray_icon.showMessage(
             "BetterFinder", 
-            "Einstellungen wurden aktualisiert.", 
+            "Settings updated.", 
             QSystemTrayIcon.Information, 
             3000
         )
     
     def close_application(self):
-        """Schließt die Anwendung"""
+        """Closes the application"""
         self.save_settings()
         QApplication.quit()
     
     def closeEvent(self, event):
         """
-        Wird aufgerufen, wenn das Fenster geschlossen wird
+        Called when the window is closed
         
         Args:
-            event: Close-Event
+            event: Close event
         """
-        # Minimieren statt schließen, wenn nicht explizit beendet
+        # Minimize instead of closing if not explicitly ended
         if self.tray_icon.isVisible():
-            # Tray ist sichtbar, also minimieren
+            # Tray is visible, so minimize
             event.ignore()
             self.hide()
         else:
-            # Kein Tray, also normal schließen
+            # No tray, so normal close
             self.save_settings()
             event.accept()
     
     def save_settings(self):
-        """Speichert die Einstellungen"""
-        # Einstellungen könnten hier gespeichert werden
+        """Saves the settings"""
+        # Settings could be saved here
         pass
     
     def restore_settings(self):
-        """Stellt die Einstellungen wieder her"""
-        # Einstellungen könnten hier wiederhergestellt werden
+        """Restores the settings"""
+        # Settings could be restored here
         pass
 
 def main():
-    """Haupteinstiegspunkt für die Anwendung"""
+    """Main entry point for the application"""
     app = QApplication(sys.argv)
     app.setApplicationName("BetterFinder")
     app.setOrganizationName("BetterFinder")
     
-    # Dunkles Theme für die gesamte Anwendung
+    # Dark theme for the entire application
     app.setStyle("Fusion")
     
-    # Dunkle Palette
+    # Dark palette
     dark_palette = QPalette()
     dark_palette.setColor(QPalette.Window, QColor(BACKGROUND_COLOR))
     dark_palette.setColor(QPalette.WindowText, QColor(TEXT_COLOR))
@@ -1269,10 +1269,10 @@ def main():
     
     app.setPalette(dark_palette)
     
-    # Hauptfenster erstellen (im Hintergrund)
+    # Main window create (in background)
     window = MainWindow()
     
-    # Anwendung starten
+    # Application start
     sys.exit(app.exec_())
 
 if __name__ == "__main__":
