@@ -59,6 +59,26 @@ def build_exe():
         except Exception as e:
             print(f"Warnung: Konnte {exe_path} nicht löschen: {e}")
     
+    # Icon-Pfad
+    icon_path = os.path.join("app", "resources", "icon.ico")
+    
+    # Prüfe auf ein existierendes PNG-Bild, falls die .ico-Datei klein oder fehlerhaft ist
+    png_icon_path = os.path.join("app", "resources", "BetterFinder-Icon.png")
+    if os.path.exists(png_icon_path) and (not os.path.exists(icon_path) or os.path.getsize(icon_path) < 1000):
+        print(f"Versuche, Icon aus PNG-Datei zu erstellen: {png_icon_path}")
+        try:
+            from PIL import Image
+            # Erstelle .ico aus dem PNG
+            img = Image.open(png_icon_path)
+            icon_sizes = [(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
+            img.save(icon_path, format="ICO", sizes=icon_sizes)
+            print(f"Icon erfolgreich erstellt: {icon_path}")
+        except ImportError:
+            print("Warnung: PIL/Pillow nicht installiert. Icon kann nicht konvertiert werden.")
+            print("Installiere Pillow mit: pip install pillow")
+        except Exception as e:
+            print(f"Warnung: Fehler beim Erstellen des Icons: {e}")
+    
     # PyInstaller-Befehl erstellen
     pyinstaller_cmd = [
         "pyinstaller",
@@ -70,14 +90,17 @@ def build_exe():
         "--add-data=app/resources;app/resources",  # Ressourcen einbinden
     ]
     
-    # Icon nicht mehr verwenden, da es Probleme verursacht
-    # if icon_path:
-    #     pyinstaller_cmd.append(f"--icon={icon_path}")
+    # Icon hinzufügen
+    if os.path.exists(icon_path) and os.path.getsize(icon_path) > 100:
+        pyinstaller_cmd.append(f"--icon={icon_path}")
+        print(f"Icon wird verwendet: {icon_path}")
+    else:
+        print("Warnung: Kein gültiges Icon gefunden oder Icon ist zu klein.")
     
     # Hauptdatei hinzufügen
     pyinstaller_cmd.append("app/main.py")
     
-    # Befehl ausführen
+    # Befehl direkt ausführen (ohne .spec-Datei-Manipulation)
     print("Starte PyInstaller...")
     print(f"Befehl: {' '.join(pyinstaller_cmd)}")
     

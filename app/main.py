@@ -8,6 +8,7 @@ import sys
 import os
 import argparse
 from PyQt5.QtWidgets import QApplication
+from PyQt5.QtGui import QIcon
 
 from app.gui.main_window import MainWindow
 
@@ -60,6 +61,38 @@ def run_command_line(args):
     return True
 
 
+def set_app_icon(app):
+    """Setzt das Anwendungsicon für die BetterFinder-Anwendung"""
+    icon_paths = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", "icon.ico"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", "BetterFinder-Icon.png")
+    ]
+    
+    # Wenn wir in einer gefrorenen PyInstaller-Anwendung sind, ist der Pfad anders
+    if getattr(sys, 'frozen', False):
+        # Bei PyInstaller-Build
+        base_path = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(sys.executable)
+        icon_paths.extend([
+            os.path.join(base_path, "app", "resources", "icon.ico"),
+            os.path.join(base_path, "app", "resources", "BetterFinder-Icon.png"),
+            os.path.join(base_path, "resources", "icon.ico"),
+            os.path.join(base_path, "resources", "BetterFinder-Icon.png")
+        ])
+    
+    # Versuche, das Icon aus verschiedenen möglichen Pfaden zu laden
+    for icon_path in icon_paths:
+        if os.path.exists(icon_path):
+            try:
+                app.setWindowIcon(QIcon(icon_path))
+                print(f"Icon gesetzt von: {icon_path}")
+                return True
+            except Exception as e:
+                print(f"Fehler beim Setzen des Icons von {icon_path}: {e}")
+    
+    print("Warnung: Kein gültiges Icon gefunden")
+    return False
+
+
 def main():
     """
     Haupteinstiegspunkt
@@ -75,6 +108,9 @@ def main():
         app = QApplication(sys.argv)
         app.setApplicationName("BetterFinder")
         app.setOrganizationName("BetterFinder")
+        
+        # Setze das Anwendungsicon
+        set_app_icon(app)
         
         # Hauptfenster erstellen (mit Tray-Icon, kein sichtbares Fenster)
         window = MainWindow()
