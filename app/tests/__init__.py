@@ -1,0 +1,3 @@
+"""
+Testsuite für BetterFinder
+""" 

@@ -1,0 +1,3 @@
+"""
+Ressourcendateien für die GUI
+""" 
