@@ -295,7 +295,7 @@ class SpotlightWindow(QDialog):
     """Main window in Spotlight style"""
     
     def __init__(self, indexer, search_engine):
-        super().__init__(None, Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        super().__init__(None, Qt.FramelessWindowHint)
         
         self.indexer = indexer
         self.search_engine = search_engine
