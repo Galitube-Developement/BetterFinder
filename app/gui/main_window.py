@@ -22,20 +22,44 @@ from PyQt5.QtWidgets import (
     QToolBar, QShortcut, QFrame, QGridLayout, QListWidget, QListWidgetItem,
     QGraphicsDropShadowEffect, QDialog, QDesktopWidget, QGroupBox, QSpinBox
 )
-from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QSettings, QSize, QRect, QPoint
+from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QSettings, QSize, QRect, QPoint, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QIcon, QPixmap, QKeySequence, QFont, QColor, QPalette, QFontMetrics, QRegion, QPainterPath
 
 from app.core.indexer import FileSystemIndexer
 from app.core.search_engine import SearchEngine
 from app.utils.file_utils import get_file_size_str, get_file_date_str, open_file, open_containing_folder
 
-# Constant definitions for styling
-BACKGROUND_COLOR = "#202020"
-TEXT_COLOR = "#FFFFFF"
-HIGHLIGHT_COLOR = "#0078D7"
-SECONDARY_COLOR = "#303030"
+# Constant definitions for styling - MODERN UI UPGRADE
+BACKGROUND_COLOR = "#1a1a1a"  # Darker, more modern
+BACKGROUND_SECONDARY = "#2d2d2d"  # Secondary background
+TEXT_COLOR = "#ffffff"
+TEXT_SECONDARY = "#b3b3b3"  # Secondary text color
+ACCENT_COLOR = "#007acc"  # Modern blue accent
+ACCENT_HOVER = "#1e88e5"  # Hover state
+SUCCESS_COLOR = "#4caf50"  # Success green
+WARNING_COLOR = "#ff9800"  # Warning orange
+ERROR_COLOR = "#f44336"  # Error red
 BORDER_COLOR = "#404040"
-ICON_COLOR = "#808080"
+BORDER_LIGHT = "#606060"  # Lighter border for hover states
+SHADOW_COLOR = "rgba(0, 0, 0, 0.3)"
+GLASS_BACKGROUND = "rgba(45, 45, 45, 0.8)"  # Glassmorphism effect
+
+# Animation constants
+ANIMATION_DURATION = 200  # ms
+HOVER_ANIMATION_DURATION = 150  # ms
+
+# Typography
+FONT_FAMILY = "Segoe UI, Arial, sans-serif"
+FONT_SIZE_LARGE = "18px"
+FONT_SIZE_MEDIUM = "14px"
+FONT_SIZE_SMALL = "12px"
+
+# Spacing
+SPACING_SMALL = 8
+SPACING_MEDIUM = 16
+SPACING_LARGE = 24
+BORDER_RADIUS = 12
+BORDER_RADIUS_LARGE = 20
 
 # Command prefixes
 COMMANDS = {
@@ -70,14 +94,19 @@ class SearchThread(QThread):
         self.stop_requested = False
     
     def run(self):
-        """Performs the search"""
+        """Performs the search - IMPROVED WITH BETTER CANCELLATION"""
         try:
             # Early check for cancellation
             if self.stop_requested:
+                print(f"Search cancelled before start: {self.query}")
                 return
                 
+            print(f"Starting search for: '{self.query}'")
+            
             # Check if it's a regular expression
             if self.query.startswith('regex:'):
+                if self.stop_requested:
+                    return
                 regex_pattern = self.query[6:].strip()
                 results = self.search_engine.search_by_regex(regex_pattern, self.file_type)
             # Check for command prefixes
@@ -98,20 +127,30 @@ class SearchThread(QThread):
                           "size": 0, "last_modified": datetime.now(), "full_path": "settings",
                           "type": "command"}]
             else:
+                # Check for cancellation before expensive search
+                if self.stop_requested:
+                    print(f"Search cancelled before engine call: {self.query}")
+                    return
                 results = self.search_engine.search(self.query, self.file_type)
             
-            # Send results back if no cancellation was requested
+            # Final check for cancellation before emitting results
             if not self.stop_requested:
+                print(f"Search completed for '{self.query}': {len(results)} results")
                 self.results_ready.emit(results)
+            else:
+                print(f"Search cancelled after completion: {self.query}")
+                
         except Exception as e:
             # Send error signal if no cancellation was requested
             if not self.stop_requested:
                 error_msg = f"Search error: {str(e)}"
+                print(f"Search error for '{self.query}': {error_msg}")
                 self.error_occurred.emit(error_msg)
                 # Return empty results list
                 self.results_ready.emit([])
+            else:
+                print(f"Search cancelled due to error: {self.query}")
             # Output complete error info in terminal
-            print(f"Search error: {e}")
             traceback.print_exc()
     
     def stop(self):
@@ -168,35 +207,58 @@ class SpotlightStyleSearchBar(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         
-        # Search field container for radius effect
+        # Search field container for radius effect - MODERN UPGRADE
         search_container = QWidget()
         search_container.setObjectName("searchContainer")
         search_container.setStyleSheet(f"""
             #searchContainer {{
-                background-color: {SECONDARY_COLOR};
-                border-radius: 25px;
-                border: 1px solid {BORDER_COLOR};
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {BACKGROUND_SECONDARY}, stop:1 {BACKGROUND_COLOR});
+                border-radius: {BORDER_RADIUS_LARGE}px;
+                border: 2px solid {BORDER_COLOR};
                 padding: 0px;
+            }}
+            #searchContainer:focus-within {{
+                border: 2px solid {ACCENT_COLOR};
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {BACKGROUND_SECONDARY}, stop:1 #333333);
             }}
         """)
         
         # Layout for the container
         container_layout = QHBoxLayout(search_container)
-        container_layout.setContentsMargins(15, 0, 15, 0)
+        container_layout.setContentsMargins(20, 0, 20, 0)
+        
+        # Search icon (using Unicode symbol for now)
+        search_icon = QLabel("🔍")
+        search_icon.setStyleSheet(f"""
+            QLabel {{
+                color: {TEXT_SECONDARY};
+                font-size: {FONT_SIZE_LARGE};
+                padding: 0px 8px 0px 0px;
+            }}
+        """)
+        container_layout.addWidget(search_icon)
         
         # Search field
         self.search_box = QLineEdit()
-        self.search_box.setPlaceholderText("Search...")
-        self.search_box.setMinimumHeight(50)
+        self.search_box.setPlaceholderText("Search files, folders, and more...")
+        self.search_box.setMinimumHeight(60)
         
-        # Transparent search field within the container
+        # Modern search field styling
         self.search_box.setStyleSheet(f"""
             QLineEdit {{
                 background-color: transparent;
                 color: {TEXT_COLOR};
                 border: none;
-                font-size: 16px;
+                font-family: {FONT_FAMILY};
+                font-size: {FONT_SIZE_LARGE};
+                font-weight: 400;
                 padding: 4px;
+            }}
+            QLineEdit::placeholder {{
+                color: {TEXT_SECONDARY};
+                font-style: italic;
             }}
         """)
         
@@ -242,36 +304,59 @@ class SpotlightResultsList(QListWidget):
         # Container for the results list
         self.setObjectName("resultsList")
         
+        # MODERN UI UPGRADE - Enhanced styling
         self.setStyleSheet(f"""
             #resultsList {{
-                background-color: {SECONDARY_COLOR};
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {BACKGROUND_SECONDARY}, stop:1 {BACKGROUND_COLOR});
                 color: {TEXT_COLOR};
                 border: none;
-                border-radius: 25px;
-                padding: 15px;
+                border-radius: {BORDER_RADIUS_LARGE}px;
+                padding: {SPACING_MEDIUM}px;
+                font-family: {FONT_FAMILY};
+                selection-background-color: transparent;
             }}
             QListWidget::item {{
-                border-radius: 15px;
-                padding: 12px;
-                margin-bottom: 5px;
+                border-radius: {BORDER_RADIUS}px;
+                padding: {SPACING_MEDIUM}px {SPACING_LARGE}px;
+                margin-bottom: 6px;
+                min-height: 50px;
+                border-left: 3px solid transparent;
+                font-size: {FONT_SIZE_MEDIUM};
+                background: transparent;
             }}
             QListWidget::item:selected {{
-                background-color: {HIGHLIGHT_COLOR};
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {ACCENT_COLOR}, stop:1 {ACCENT_HOVER});
+                color: white;
+                border-left: 3px solid white;
+                font-weight: 500;
             }}
             QListWidget::item:hover {{
-                background-color: #404040;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {BACKGROUND_SECONDARY}, stop:1 rgba(45, 45, 45, 0.8));
+                border-left: 3px solid {ACCENT_COLOR};
+            }}
+            QListWidget::item:selected:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {ACCENT_HOVER}, stop:1 {ACCENT_COLOR});
             }}
             QScrollBar:vertical {{
                 border: none;
                 background: {BACKGROUND_COLOR};
-                width: 8px;
-                margin: 15px 3px 15px 3px;
-                border-radius: 4px;
+                width: 10px;
+                margin: {SPACING_MEDIUM}px 3px {SPACING_MEDIUM}px 3px;
+                border-radius: 5px;
             }}
             QScrollBar::handle:vertical {{
-                background: {BORDER_COLOR};
-                min-height: 20px;
-                border-radius: 4px;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {BORDER_COLOR}, stop:1 {BORDER_LIGHT});
+                min-height: 30px;
+                border-radius: 5px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {ACCENT_COLOR}, stop:1 {ACCENT_HOVER});
             }}
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
                 border: none;
@@ -328,12 +413,14 @@ class SpotlightWindow(QDialog):
         self.content_widget = QWidget(self)
         self.content_widget.setObjectName("contentWidget")
         
-        # Extremely rounded corners for the content
+        # MODERN UI UPGRADE - Glassmorphism effect
         self.content_widget.setStyleSheet(f"""
             #contentWidget {{
-                background-color: {BACKGROUND_COLOR};
-                border-radius: 35px;
-                border: 1px solid {BORDER_COLOR};
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {GLASS_BACKGROUND}, stop:1 {BACKGROUND_COLOR});
+                border-radius: {BORDER_RADIUS_LARGE * 2}px;
+                border: 2px solid {BORDER_COLOR};
+                backdrop-filter: blur(20px);
             }}
         """)
         
@@ -366,6 +453,20 @@ class SpotlightWindow(QDialog):
         
         # Focus on search field
         self.search_bar.set_focus()
+        
+        # MODERN UI UPGRADE - Add fade-in animation
+        self.setWindowOpacity(0.0)
+        self.fade_animation = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_animation.setDuration(ANIMATION_DURATION)
+        self.fade_animation.setStartValue(0.0)
+        self.fade_animation.setEndValue(1.0)
+        self.fade_animation.setEasingCurve(QEasingCurve.OutCubic)
+    
+    def showEvent(self, event):
+        """Override show event to add animation"""
+        super().showEvent(event)
+        if hasattr(self, 'fade_animation'):
+            self.fade_animation.start()
     
     def keyPressEvent(self, event):
         # Escape closes the window
@@ -387,70 +488,200 @@ class SpotlightWindow(QDialog):
             event.accept()
     
     def on_search_triggered(self, text):
-        # Start delayed search
-        self.search_timer.start(300)
+        # Start delayed search - IMPROVED DEBOUNCING
+        if self.search_timer.isActive():
+            self.search_timer.stop()
+        
+        # Only search if text is not empty
+        if text.strip():
+            self.search_timer.start(300)
+        else:
+            # Clear results immediately for empty search
+            self.results_list.clear()
+            self.stop_current_search()
         
     def stop_current_search(self):
-        """Stops the current search thread if it exists"""
+        """Stops the current search thread if it exists - IMPROVED"""
         if self.search_thread and self.search_thread.isRunning():
-            if hasattr(self.search_thread, 'stop'):
-                self.search_thread.stop()
-            
-            self.search_thread.disconnect()
-            self.search_thread.terminate()
-            self.search_thread.wait(500)
-            self.search_thread = None
+            try:
+                # Signal the thread to stop
+                if hasattr(self.search_thread, 'stop'):
+                    self.search_thread.stop()
+                
+                # Disconnect all signals to prevent race conditions
+                self.search_thread.results_ready.disconnect()
+                self.search_thread.error_occurred.disconnect()
+                
+                # Try graceful termination first
+                self.search_thread.quit()
+                if not self.search_thread.wait(1000):  # Wait max 1 second
+                    # Force termination if needed
+                    self.search_thread.terminate()
+                    self.search_thread.wait(500)
+                    
+            except Exception as e:
+                print(f"Error stopping search thread: {e}")
+            finally:
+                self.search_thread = None
     
     def perform_search(self):
-        """Performs the actual search"""
-        query = self.search_bar.get_text()
+        """Performs the actual search - IMPROVED THREAD SAFETY"""
+        query = self.search_bar.get_text().strip()
         
         # Check if search text is empty
         if not query:
             self.results_list.clear()
             return
         
-        # Stop current thread
+        # Prevent multiple searches with same query
+        if hasattr(self, 'last_query') and self.last_query == query:
+            return
+        
+        self.last_query = query
+        
+        # Stop current thread safely
         self.stop_current_search()
         
-        # Start new search thread
-        self.search_thread = SearchThread(self.search_engine, query, None)
-        self.search_thread.results_ready.connect(self.display_results)
-        self.search_thread.error_occurred.connect(self.show_error)
-        self.search_thread.start()
+        # Small delay to ensure thread cleanup
+        QTimer.singleShot(50, lambda: self._start_search_thread(query))
+    
+    def _start_search_thread(self, query):
+        """Helper method to start search thread"""
+        try:
+            # Double-check that no thread is running
+            if self.search_thread and self.search_thread.isRunning():
+                print("Warning: Previous search thread still running")
+                return
+            
+            # Create and start new search thread
+            self.search_thread = SearchThread(self.search_engine, query, None)
+            self.search_thread.results_ready.connect(self.display_results)
+            self.search_thread.error_occurred.connect(self.show_error)
+            self.search_thread.start()
+            
+            print(f"Started search for: '{query}'")
+            
+        except Exception as e:
+            print(f"Error starting search thread: {e}")
+            self.show_error(f"Search error: {str(e)}")
     
     def display_results(self, results):
-        """Shows the search results"""
+        """Shows the search results - MODERN UI UPGRADE"""
         self.results_list.clear()
         
         for result in results:
             item = QListWidgetItem()
             
-            # Item text and icon based on type
+            # Enhanced item text and icon based on type
             if 'type' in result and result['type'] == 'calculation':
-                item.setText(result['filename'])
-                # Math symbol for calculations
-                # (here a real icon should be set)
+                # Math calculation with modern formatting
+                item.setText(f"🧮  {result['filename']}")
+                item.setToolTip("Mathematical calculation")
             elif 'type' in result and result['type'] == 'command':
-                item.setText(result['filename'])
-                # Settings symbol for commands
-                # (here a real icon should be set)
+                # Command with settings icon
+                item.setText(f"⚙️  {result['filename']}")
+                item.setToolTip("BetterFinder command")
             else:
-                # Normal file
-                item.setText(f"{result['filename']} - {result['path']}")
-                # File type-dependent icon
-                # (here a real icon should be set)
+                # Enhanced file display with better formatting
+                filename = result['filename']
+                path = result['path']
+                
+                # File type icons based on extension
+                file_icon = self.get_file_icon(filename)
+                
+                # Format: Icon + Filename + Path (secondary color)
+                display_text = f"{file_icon}  {filename}"
+                if path and path != filename:
+                    # Truncate long paths for better readability
+                    if len(path) > 50:
+                        path = "..." + path[-47:]
+                    display_text += f"\n    📁 {path}"
+                
+                item.setText(display_text)
+                item.setToolTip(result.get('full_path', ''))
             
             # Data for double click storage
             item.setData(Qt.UserRole, result['full_path'])
             
+            # Enhanced styling for individual items
+            font = item.font()
+            font.setFamily(FONT_FAMILY)
+            item.setFont(font)
+            
             self.results_list.addItem(item)
+    
+    def get_file_icon(self, filename):
+        """Returns appropriate emoji icon based on file extension"""
+        if not filename:
+            return "📄"
+            
+        ext = filename.lower().split('.')[-1] if '.' in filename else ''
+        
+        # Icon mapping for common file types
+        icon_map = {
+            # Documents
+            'pdf': '📕', 'doc': '📘', 'docx': '📘', 'txt': '📄', 'rtf': '📄',
+            'odt': '📄', 'pages': '📄',
+            
+            # Spreadsheets
+            'xls': '📊', 'xlsx': '📊', 'csv': '📊', 'ods': '📊', 'numbers': '📊',
+            
+            # Presentations
+            'ppt': '📽️', 'pptx': '📽️', 'odp': '📽️', 'key': '📽️',
+            
+            # Images
+            'jpg': '🖼️', 'jpeg': '🖼️', 'png': '🖼️', 'gif': '🖼️', 'bmp': '🖼️',
+            'svg': '🖼️', 'ico': '🖼️', 'tiff': '🖼️', 'webp': '🖼️',
+            
+            # Videos
+            'mp4': '🎬', 'avi': '🎬', 'mkv': '🎬', 'mov': '🎬', 'wmv': '🎬',
+            'flv': '🎬', 'webm': '🎬', 'm4v': '🎬',
+            
+            # Audio
+            'mp3': '🎵', 'wav': '🎵', 'flac': '🎵', 'aac': '🎵', 'ogg': '🎵',
+            'wma': '🎵', 'm4a': '🎵',
+            
+            # Archives
+            'zip': '📦', 'rar': '📦', '7z': '📦', 'tar': '📦', 'gz': '📦',
+            'bz2': '📦', 'xz': '📦',
+            
+            # Code files
+            'py': '🐍', 'js': '📜', 'html': '🌐', 'css': '🎨', 'cpp': '⚙️',
+            'c': '⚙️', 'java': '☕', 'php': '🐘', 'rb': '💎', 'go': '🐹',
+            'rs': '🦀', 'swift': '🦉', 'kt': '🎯', 'ts': '📜',
+            
+            # Executables
+            'exe': '⚡', 'msi': '⚡', 'app': '⚡', 'deb': '⚡', 'rpm': '⚡',
+            
+            # Folders (special case)
+            'folder': '📁'
+        }
+        
+        return icon_map.get(ext, '📄')
     
     def on_item_selected(self, path):
         """Handles selection of a result"""
         if path == 'settings':
-            # Open settings
+            # Open settings - FIX: Import and use proper settings dialog
             self.hide()
+            try:
+                from app.gui.settings_dialog import SettingsDialog
+                # Get parent window (MainWindow) from the spotlight window
+                parent_window = None
+                for widget in QApplication.topLevelWidgets():
+                    if isinstance(widget, MainWindow):
+                        parent_window = widget
+                        break
+                
+                if parent_window:
+                    dialog = SettingsDialog(parent_window)
+                    dialog.exec_()
+                else:
+                    print("Warning: Could not find main window for settings dialog")
+            except Exception as e:
+                print(f"Error opening settings: {e}")
+                import traceback
+                traceback.print_exc()
             return
             
         try:
@@ -465,512 +696,7 @@ class SpotlightWindow(QDialog):
         print(f"Error: {error_message}")
         # Here a error icon could be displayed in the results list
 
-class SettingsDialog(QDialog):
-    """Settings dialog for BetterFinder"""
-    
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.settings = QSettings("BetterFinder", "BetterFinder")
-        self.setWindowTitle("BetterFinder Settings")
-        self.resize(500, 400)
-        
-        # Transparent background for rounding
-        self.setAttribute(Qt.WA_TranslucentBackground)
-        
-        # Create UI
-        self.init_ui()
-        
-        # Load existing settings
-        self.load_settings()
-    
-    def init_ui(self):
-        # Main layout
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(20, 20, 20, 20)
-        
-        # Container for content
-        self.content_widget = QWidget(self)
-        self.content_widget.setObjectName("settingsContent")
-        self.content_widget.setStyleSheet(f"""
-            #settingsContent {{
-                background-color: {BACKGROUND_COLOR};
-                border-radius: 25px;
-                border: 1px solid {BORDER_COLOR};
-            }}
-        """)
-        
-        # Content layout
-        content_layout = QVBoxLayout(self.content_widget)
-        content_layout.setContentsMargins(25, 25, 25, 25)
-        content_layout.setSpacing(15)
-        
-        # Title
-        title_label = QLabel("BetterFinder Settings")
-        title_label.setStyleSheet(f"color: {TEXT_COLOR}; font-size: 18px; font-weight: bold;")
-        content_layout.addWidget(title_label)
-        
-        # Separator
-        separator = QFrame()
-        separator.setFrameShape(QFrame.HLine)
-        separator.setFrameShadow(QFrame.Sunken)
-        separator.setStyleSheet(f"background-color: {BORDER_COLOR};")
-        content_layout.addWidget(separator)
-        
-        # Scroll area for all settings
-        scroll_area = QWidget()
-        scroll_layout = QVBoxLayout(scroll_area)
-        scroll_layout.setContentsMargins(0, 0, 0, 0)
-        scroll_layout.setSpacing(15)
-        
-        # 1. Hotkey setting
-        hotkey_group = QGroupBox("Hotkey")
-        hotkey_group.setStyleSheet(f"""
-            QGroupBox {{
-                color: {TEXT_COLOR};
-                font-weight: bold;
-                border: 1px solid {BORDER_COLOR};
-                border-radius: 8px;
-                margin-top: 15px;
-                padding-top: 15px;
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
-            }}
-        """)
-        
-        hotkey_layout = QVBoxLayout(hotkey_group)
-        hotkey_description = QLabel("Hotkey to open BetterFinder:")
-        hotkey_description.setStyleSheet(f"color: {TEXT_COLOR};")
-        
-        self.hotkey_edit = QLineEdit()
-        self.hotkey_edit.setReadOnly(True)
-        self.hotkey_edit.setText("Strg+Leertaste")
-        self.hotkey_edit.setStyleSheet(f"""
-            QLineEdit {{
-                background-color: {SECONDARY_COLOR};
-                color: {TEXT_COLOR};
-                border: 1px solid {BORDER_COLOR};
-                border-radius: 5px;
-                padding: 5px;
-            }}
-        """)
-        
-        self.hotkey_button = QPushButton("Change")
-        self.hotkey_button.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {HIGHLIGHT_COLOR};
-                color: white;
-                border: none;
-                border-radius: 5px;
-                padding: 8px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: #0069c0;
-            }}
-        """)
-        self.hotkey_button.clicked.connect(self.change_hotkey)
-        
-        hotkey_layout.addWidget(hotkey_description)
-        hotkey_layout.addWidget(self.hotkey_edit)
-        hotkey_layout.addWidget(self.hotkey_button)
-        
-        # 2. Autostart option
-        autostart_group = QGroupBox("System start")
-        autostart_group.setStyleSheet(f"""
-            QGroupBox {{
-                color: {TEXT_COLOR};
-                font-weight: bold;
-                border: 1px solid {BORDER_COLOR};
-                border-radius: 8px;
-                margin-top: 15px;
-                padding-top: 15px;
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
-            }}
-        """)
-        
-        autostart_layout = QVBoxLayout(autostart_group)
-        self.autostart_checkbox = QCheckBox("Start BetterFinder automatically at system start")
-        self.autostart_checkbox.setStyleSheet(f"""
-            QCheckBox {{
-                color: {TEXT_COLOR};
-                spacing: 5px;
-            }}
-            QCheckBox::indicator {{
-                width: 18px;
-                height: 18px;
-                border-radius: 2px;
-                border: 1px solid {BORDER_COLOR};
-            }}
-            QCheckBox::indicator:checked {{
-                background-color: {HIGHLIGHT_COLOR};
-                border: 1px solid {HIGHLIGHT_COLOR};
-            }}
-        """)
-        
-        autostart_layout.addWidget(self.autostart_checkbox)
-        
-        # 3. Excluded directories
-        exclude_group = QGroupBox("Excluded directories")
-        exclude_group.setStyleSheet(f"""
-            QGroupBox {{
-                color: {TEXT_COLOR};
-                font-weight: bold;
-                border: 1px solid {BORDER_COLOR};
-                border-radius: 8px;
-                margin-top: 15px;
-                padding-top: 15px;
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
-            }}
-        """)
-        
-        exclude_layout = QVBoxLayout(exclude_group)
-        exclude_description = QLabel("These directories will not be indexed:")
-        exclude_description.setStyleSheet(f"color: {TEXT_COLOR};")
-        
-        self.exclude_list = QListWidget()
-        self.exclude_list.setStyleSheet(f"""
-            QListWidget {{
-                background-color: {SECONDARY_COLOR};
-                color: {TEXT_COLOR};
-                border: 1px solid {BORDER_COLOR};
-                border-radius: 5px;
-                padding: 5px;
-            }}
-            QListWidget::item {{
-                padding: 5px;
-                border-radius: 3px;
-            }}
-            QListWidget::item:selected {{
-                background-color: {HIGHLIGHT_COLOR};
-            }}
-        """)
-        self.exclude_list.setMaximumHeight(100)
-        
-        exclude_buttons_layout = QHBoxLayout()
-        self.add_exclude_button = QPushButton("Add")
-        self.add_exclude_button.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {HIGHLIGHT_COLOR};
-                color: white;
-                border: none;
-                border-radius: 5px;
-                padding: 8px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: #0069c0;
-            }}
-        """)
-        self.add_exclude_button.clicked.connect(self.add_exclude_path)
-        
-        self.remove_exclude_button = QPushButton("Remove")
-        self.remove_exclude_button.setStyleSheet(f"""
-            QPushButton {{
-                background-color: #d32f2f;
-                color: white;
-                border: none;
-                border-radius: 5px;
-                padding: 8px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: #b71c1c;
-            }}
-        """)
-        self.remove_exclude_button.clicked.connect(self.remove_exclude_path)
-        
-        exclude_buttons_layout.addWidget(self.add_exclude_button)
-        exclude_buttons_layout.addWidget(self.remove_exclude_button)
-        
-        exclude_layout.addWidget(exclude_description)
-        exclude_layout.addWidget(self.exclude_list)
-        exclude_layout.addLayout(exclude_buttons_layout)
-        
-        # 4. Maximum number of results
-        results_group = QGroupBox("Results")
-        results_group.setStyleSheet(f"""
-            QGroupBox {{
-                color: {TEXT_COLOR};
-                font-weight: bold;
-                border: 1px solid {BORDER_COLOR};
-                border-radius: 8px;
-                margin-top: 15px;
-                padding-top: 15px;
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
-            }}
-        """)
-        
-        results_layout = QVBoxLayout(results_group)
-        results_description = QLabel("Maximum number of displayed search results:")
-        results_description.setStyleSheet(f"color: {TEXT_COLOR};")
-        
-        self.results_spinbox = QSpinBox()
-        self.results_spinbox.setStyleSheet(f"""
-            QSpinBox {{
-                background-color: {SECONDARY_COLOR};
-                color: {TEXT_COLOR};
-                border: 1px solid {BORDER_COLOR};
-                border-radius: 5px;
-                padding: 5px;
-            }}
-            QSpinBox::up-button, QSpinBox::down-button {{
-                background-color: {BORDER_COLOR};
-                border-radius: 2px;
-            }}
-        """)
-        self.results_spinbox.setMinimum(10)
-        self.results_spinbox.setMaximum(100)
-        self.results_spinbox.setSingleStep(5)
-        self.results_spinbox.setValue(30)
-        
-        results_layout.addWidget(results_description)
-        results_layout.addWidget(self.results_spinbox)
-        
-        # Add all groups to scroll layout
-        scroll_layout.addWidget(hotkey_group)
-        scroll_layout.addWidget(autostart_group)
-        scroll_layout.addWidget(exclude_group)
-        scroll_layout.addWidget(results_group)
-        scroll_layout.addStretch(1)
-        
-        # Add scroll widget to content layout
-        content_layout.addWidget(scroll_area)
-        
-        # Bottom buttons
-        button_layout = QHBoxLayout()
-        button_layout.addStretch(1)
-        
-        self.cancel_button = QPushButton("Cancel")
-        self.cancel_button.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {SECONDARY_COLOR};
-                color: {TEXT_COLOR};
-                border: 1px solid {BORDER_COLOR};
-                border-radius: 5px;
-                padding: 8px 15px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: #404040;
-            }}
-        """)
-        self.cancel_button.clicked.connect(self.reject)
-        
-        self.save_button = QPushButton("Save")
-        self.save_button.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {HIGHLIGHT_COLOR};
-                color: white;
-                border: none;
-                border-radius: 5px;
-                padding: 8px 15px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: #0069c0;
-            }}
-        """)
-        self.save_button.clicked.connect(self.save_settings)
-        
-        button_layout.addWidget(self.cancel_button)
-        button_layout.addWidget(self.save_button)
-        
-        content_layout.addLayout(button_layout)
-        
-        # Shadow effect
-        shadow = QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(30)
-        shadow.setColor(QColor(0, 0, 0, 150))
-        shadow.setOffset(0, 5)
-        self.content_widget.setGraphicsEffect(shadow)
-        
-        # Add content to main layout
-        main_layout.addWidget(self.content_widget)
-    
-    def load_settings(self):
-        """Load existing settings"""
-        # Hotkey
-        hotkey = self.settings.value("hotkey", "Strg+Leertaste")
-        self.hotkey_edit.setText(hotkey)
-        
-        # Autostart
-        autostart = self.settings.value("autostart", False, type=bool)
-        self.autostart_checkbox.setChecked(autostart)
-        
-        # Excluded directories
-        excluded_paths = self.settings.value("excluded_paths", [], type=list)
-        for path in excluded_paths:
-            self.exclude_list.addItem(path)
-        
-        # Maximum number of results
-        max_results = self.settings.value("max_results", 30, type=int)
-        self.results_spinbox.setValue(max_results)
-    
-    def save_settings(self):
-        """Saves the settings"""
-        try:
-            # Hotkey
-            self.settings.setValue("hotkey", self.hotkey_edit.text())
-            
-            # Autostart
-            self.settings.setValue("autostart", self.autostart_checkbox.isChecked())
-            try:
-                if self.autostart_checkbox.isChecked():
-                    self.setup_autostart(True)
-                else:
-                    self.setup_autostart(False)
-            except Exception as e:
-                print(f"Error configuring autostart: {e}")
-                # Show warning, but don't abort
-                QMessageBox.warning(self, "Autostart warning",
-                                  f"Autostart setting could not be applied: {e}\n\nAll other settings were saved.")
-            
-            # Excluded directories
-            excluded_paths = []
-            for i in range(self.exclude_list.count()):
-                excluded_paths.append(self.exclude_list.item(i).text())
-            self.settings.setValue("excluded_paths", excluded_paths)
-            
-            # Maximum number of results
-            self.settings.setValue("max_results", self.results_spinbox.value())
-            
-            # Save settings
-            self.settings.sync()
-            
-            # Close dialog
-            self.accept()
-        except Exception as e:
-            # Show error message and don't abort
-            print(f"Error saving settings: {e}")
-            traceback.print_exc()
-            QMessageBox.critical(self, "Error", 
-                              f"Settings could not be saved: {str(e)}")
-            # Dialog remains open so user can try again
-    
-    def change_hotkey(self):
-        """Changes the hotkey"""
-        # In a real implementation, here a dialog would be displayed,
-        # which captures a key press and stores it as the new hotkey
-        self.hotkey_edit.setText("Strg+Leertaste")  # Placeholder, would be replaced in reality by the captured hotkey
-    
-    def add_exclude_path(self):
-        """Adds an excluded path"""
-        directory = QFileDialog.getExistingDirectory(self, "Select directory")
-        if directory:
-            # Check if the path is already in the list
-            for i in range(self.exclude_list.count()):
-                if self.exclude_list.item(i).text() == directory:
-                    return
-            
-            # Add the path to the list
-            self.exclude_list.addItem(directory)
-    
-    def remove_exclude_path(self):
-        """Removes a selected path"""
-        selected_items = self.exclude_list.selectedItems()
-        for item in selected_items:
-            self.exclude_list.takeItem(self.exclude_list.row(item))
-    
-    def setup_autostart(self, enable):
-        """Configures autostart"""
-        import os
-        import sys
-        import ctypes
-        
-        try:
-            # Path to the executable
-            if getattr(sys, 'frozen', False):
-                # If the application was created with PyInstaller
-                app_path = sys.executable
-            else:
-                # If the application is run with Python
-                app_path = os.path.abspath(sys.argv[0])
-            
-            # Autostart directory
-            startup_dir = os.path.join(os.getenv('APPDATA'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup')
-            shortcut_path = os.path.join(startup_dir, 'BetterFinder.lnk')
-            bat_path = os.path.join(startup_dir, 'BetterFinder.bat')
-            
-            # Check if the directory exists and is writable
-            if not os.path.exists(startup_dir):
-                os.makedirs(startup_dir, exist_ok=True)
-                print(f"Autostart directory created: {startup_dir}")
-            
-            # Check if the directory is writable
-            if not os.access(startup_dir, os.W_OK):
-                raise Exception(f"No write permissions for the autostart directory: {startup_dir}")
-            
-            # Check if we have administrator rights (for UAC-protected folders)
-            def is_admin():
-                try:
-                    return ctypes.windll.shell32.IsUserAnAdmin()
-                except:
-                    return False
-            
-            if enable:
-                # Create a .bat file in the autostart directory
-                try:
-                    # Check if an existing file can be deleted
-                    if os.path.exists(bat_path) and not os.access(bat_path, os.W_OK):
-                        raise PermissionError(f"No write permissions for the existing file: {bat_path}")
-                        
-                    # Try to write the file
-                    try:
-                        with open(bat_path, 'w') as f:
-                            f.write(f'start "" "{app_path}"')
-                        print(f"Autostart file created successfully: {bat_path}")
-                    except PermissionError:
-                        if not is_admin():
-                            raise Exception("Not enough permissions. Try running the program as Administrator.")
-                        else:
-                            raise Exception(f"No write permissions for: {bat_path}")
-                    except IOError as e:
-                        raise Exception(f"IO error when writing file: {e}")
-                except Exception as e:
-                    raise Exception(f"Error creating autostart file: {e}")
-            else:
-                # Remove the file from the autostart directory
-                try:
-                    if os.path.exists(shortcut_path):
-                        try:
-                            os.remove(shortcut_path)
-                            print(f"Shortcut removed successfully: {shortcut_path}")
-                        except PermissionError:
-                            if not is_admin():
-                                raise Exception("Not enough permissions to remove the file. Try running the program as Administrator.")
-                            else:
-                                raise Exception(f"No delete permissions for: {shortcut_path}")
-                    
-                    if os.path.exists(bat_path):
-                        try:
-                            os.remove(bat_path)
-                            print(f"Batch file removed successfully: {bat_path}")
-                        except PermissionError:
-                            if not is_admin():
-                                raise Exception("Not enough permissions to remove the file. Try running the program as Administrator.")
-                            else:
-                                raise Exception(f"No delete permissions for: {bat_path}")
-                except Exception as e:
-                    raise Exception(f"Error removing autostart file: {e}")
-        except Exception as e:
-            # Pass all errors to a higher level
-            print(f"Autostart configuration failed: {e}")
-            raise
+# SettingsDialog class removed - using separate settings_dialog.py file instead
 
 class MainWindow(QMainWindow):
     """Main window of the application"""
@@ -1179,12 +905,19 @@ class MainWindow(QMainWindow):
         self.tray_icon.showMessage("BetterFinder Error", error_message, QSystemTrayIcon.Critical, 5000)
     
     def show_settings(self):
-        """Shows the settings"""
-        dialog = SettingsDialog(self)
-        if dialog.exec_() == QDialog.Accepted:
-            # Settings were saved
-            # Update application with new settings
-            self.apply_settings()
+        """Shows the settings - FIXED"""
+        try:
+            from app.gui.settings_dialog import SettingsDialog
+            dialog = SettingsDialog(self)
+            if dialog.exec_() == QDialog.Accepted:
+                # Settings were saved
+                # Update application with new settings
+                self.apply_settings()
+        except Exception as e:
+            print(f"Error opening settings: {e}")
+            import traceback
+            traceback.print_exc()
+            self.show_error(f"Could not open settings: {str(e)}")
     
     def apply_settings(self):
         """Applies the saved settings"""
@@ -1241,6 +974,92 @@ class MainWindow(QMainWindow):
         """Restores the settings"""
         # Settings could be restored here
         pass
+    
+    def setup_autostart(self, enable):
+        """Configures autostart - ADDED FOR SETTINGS DIALOG"""
+        import os
+        import sys
+        import ctypes
+        
+        try:
+            # Path to the executable
+            if getattr(sys, 'frozen', False):
+                # If the application was created with PyInstaller
+                app_path = sys.executable
+            else:
+                # If the application is run with Python
+                app_path = os.path.abspath(sys.argv[0])
+            
+            # Autostart directory
+            startup_dir = os.path.join(os.getenv('APPDATA'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup')
+            shortcut_path = os.path.join(startup_dir, 'BetterFinder.lnk')
+            bat_path = os.path.join(startup_dir, 'BetterFinder.bat')
+            
+            # Check if the directory exists and is writable
+            if not os.path.exists(startup_dir):
+                os.makedirs(startup_dir, exist_ok=True)
+                print(f"Autostart directory created: {startup_dir}")
+            
+            # Check if the directory is writable
+            if not os.access(startup_dir, os.W_OK):
+                raise Exception(f"No write permissions for the autostart directory: {startup_dir}")
+            
+            # Check if we have administrator rights (for UAC-protected folders)
+            def is_admin():
+                try:
+                    return ctypes.windll.shell32.IsUserAnAdmin()
+                except:
+                    return False
+            
+            if enable:
+                # Create a .bat file in the autostart directory
+                try:
+                    # Check if an existing file can be deleted
+                    if os.path.exists(bat_path) and not os.access(bat_path, os.W_OK):
+                        raise PermissionError(f"No write permissions for the existing file: {bat_path}")
+                        
+                    # Try to write the file
+                    try:
+                        with open(bat_path, 'w') as f:
+                            f.write(f'start "" "{app_path}"')
+                        print(f"Autostart file created successfully: {bat_path}")
+                    except PermissionError:
+                        if not is_admin():
+                            raise Exception("Not enough permissions. Try running the program as Administrator.")
+                        else:
+                            raise Exception(f"No write permissions for: {bat_path}")
+                    except IOError as e:
+                        raise Exception(f"IO error when writing file: {e}")
+                except Exception as e:
+                    raise Exception(f"Error creating autostart file: {e}")
+            else:
+                # Remove the file from the autostart directory
+                try:
+                    if os.path.exists(shortcut_path):
+                        try:
+                            os.remove(shortcut_path)
+                            print(f"Shortcut removed successfully: {shortcut_path}")
+                        except PermissionError:
+                            if not is_admin():
+                                raise Exception("Not enough permissions to remove the file. Try running the program as Administrator.")
+                            else:
+                                raise Exception(f"No delete permissions for: {shortcut_path}")
+                    
+                    if os.path.exists(bat_path):
+                        try:
+                            os.remove(bat_path)
+                            print(f"Batch file removed successfully: {bat_path}")
+                        except PermissionError:
+                            if not is_admin():
+                                raise Exception("Not enough permissions to remove the file. Try running the program as Administrator.")
+                            else:
+                                raise Exception(f"No delete permissions for: {bat_path}")
+                except Exception as e:
+                    raise Exception(f"Error removing autostart file: {e}")
+        except Exception as e:
+            # Pass all errors to a higher level
+            print(f"Autostart configuration failed: {e}")
+            raise
 
 def main():
     """Main entry point for the application"""
@@ -1255,16 +1074,16 @@ def main():
     dark_palette = QPalette()
     dark_palette.setColor(QPalette.Window, QColor(BACKGROUND_COLOR))
     dark_palette.setColor(QPalette.WindowText, QColor(TEXT_COLOR))
-    dark_palette.setColor(QPalette.Base, QColor(SECONDARY_COLOR))
+    dark_palette.setColor(QPalette.Base, QColor(BACKGROUND_SECONDARY))
     dark_palette.setColor(QPalette.AlternateBase, QColor(BACKGROUND_COLOR))
     dark_palette.setColor(QPalette.ToolTipBase, QColor(TEXT_COLOR))
     dark_palette.setColor(QPalette.ToolTipText, QColor(TEXT_COLOR))
     dark_palette.setColor(QPalette.Text, QColor(TEXT_COLOR))
-    dark_palette.setColor(QPalette.Button, QColor(SECONDARY_COLOR))
+    dark_palette.setColor(QPalette.Button, QColor(BACKGROUND_SECONDARY))
     dark_palette.setColor(QPalette.ButtonText, QColor(TEXT_COLOR))
     dark_palette.setColor(QPalette.BrightText, Qt.red)
-    dark_palette.setColor(QPalette.Link, QColor(HIGHLIGHT_COLOR))
-    dark_palette.setColor(QPalette.Highlight, QColor(HIGHLIGHT_COLOR))
+    dark_palette.setColor(QPalette.Link, QColor(ACCENT_COLOR))
+    dark_palette.setColor(QPalette.Highlight, QColor(ACCENT_COLOR))
     dark_palette.setColor(QPalette.HighlightedText, Qt.white)
     
     app.setPalette(dark_palette)
